@@ -1,0 +1,37 @@
+services:
+  club_lectura_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: club_lectura_bot
+    restart: unless-stopped
+
+    environment:
+      TOKEN: ${TELEGRAM_BOT_TOKEN}
+      WEBHOOK_URL: https://club-de-lectura-bot.alvaropenaruiz.com/telegram/webhook
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      SQLITE_PATH: /data/app.db
+      APP_PORT: 8080
+      TZ: Europe/Madrid
+
+    volumes:
+      - ./data:/data
+
+    networks:
+      - proxy
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+
+      - "traefik.http.routers.clublectura.rule=Host(`club-de-lectura-bot.alvaropenaruiz.com`)"
+      - "traefik.http.routers.clublectura.entrypoints=websecure"
+      - "traefik.http.routers.clublectura.tls=true"
+      - "traefik.http.routers.clublectura.tls.certresolver=le"
+
+      - "traefik.http.services.clublectura.loadbalancer.server.port=8080"
+
+networks:
+  proxy:
+    external: true
+    name: proxy
