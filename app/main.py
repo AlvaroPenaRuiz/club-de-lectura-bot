@@ -11,7 +11,7 @@ logging.basicConfig(
 )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Este es el Club de Lectura Bot. ¡Bienvenido!")
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
