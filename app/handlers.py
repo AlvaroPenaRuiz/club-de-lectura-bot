@@ -20,6 +20,17 @@ def nombre_de_usuario(user) -> str:
     return nombre or user.username or str(user.id)
 
 
+def _lista_progreso(chat_id: int) -> str:
+    leidos = quienes_leyeron(chat_id)
+    faltan = quienes_faltan(chat_id)
+    ids_leidos = {r['user_id'] for r in leidos}
+    lineas = []
+    for r in leidos + faltan:
+        marca = "✅" if r['user_id'] in ids_leidos else "⬜"
+        lineas.append(f"{marca} {r['nombre']}")
+    return "\n".join(lineas)
+
+
 async def es_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     miembro = await context.bot.get_chat_member(
         update.effective_chat.id, update.effective_user.id
@@ -60,13 +71,15 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     leidos = quienes_leyeron(update.effective_chat.id)
     faltan = quienes_faltan(update.effective_chat.id)
+    lista = _lista_progreso(update.effective_chat.id)
 
     texto = (
         f"📖 Libro: {club['libro'] or 'No definido'}\n"
         f"📑 Bloque: {club['bloque'] or 'No definido'}\n"
-        f"✅ Leídos: {len(leidos)}\n"
-        f"⏳ Pendientes: {len(faltan)}"
+        f"✅ Leídos: {len(leidos)} | ⏳ Pendientes: {len(faltan)}"
     )
+    if lista:
+        texto += f"\n\n{lista}"
     await update.message.reply_text(texto)
 
 
@@ -134,20 +147,25 @@ async def leido(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def leidos(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lista = quienes_leyeron(update.effective_chat.id)
+    leyeron = quienes_leyeron(update.effective_chat.id)
+    lista = _lista_progreso(update.effective_chat.id)
     if not lista:
-        await update.message.reply_text("Nadie ha terminado el bloque todavía.")
+        await update.message.reply_text("No hay nadie apuntado todavía.")
         return
 
-    texto = "Ya han terminado:\n" + "\n".join(f"• {r['nombre']}" for r in lista)
+    texto = f"Ya lo han leído {len(leyeron)}:\n\n{lista}"
     await update.message.reply_text(texto)
 
 
 async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lista = quienes_faltan(update.effective_chat.id)
+    faltan = quienes_faltan(update.effective_chat.id)
+    lista = _lista_progreso(update.effective_chat.id)
     if not lista:
-        await update.message.reply_text("¡No queda nadie pendiente! 🎉")
+        await update.message.reply_text("No hay nadie apuntado todavía.")
         return
 
-    texto = "Faltan por terminar:\n" + "\n".join(f"• {p['nombre']}" for p in lista)
+    if not faltan:
+        texto = f"¡No queda nadie pendiente! 🎉\n\n{lista}"
+    else:
+        texto = f"Aún quedan {len(faltan)}:\n\n{lista}"
     await update.message.reply_text(texto)
