@@ -1,0 +1,222 @@
+import os
+import sqlite3
+from pathlib import Path
+from contextlib import closing
+
+DB_PATH = os.getenv("SQLITE_PATH", "/data/app.db")
+
+Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+
+
+def _conectar():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode = WAL;")
+    return conn
+
+
+def inicializar():
+    with closing(_conectar()) as conn, conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS clubes (
+                chat_id       INTEGER PRIMARY KEY,
+                nombre_grupo  TEXT,
+                libro         TEXT,
+                bloque        TEXT,
+                version_bloque INTEGER NOT NULL DEFAULT 1,
+                actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS lectores (
+                chat_id    INTEGER NOT NULL,
+                user_id    INTEGER NOT NULL,
+                nombre     TEXT NOT NULL,
+                username   TEXT,
+                apuntado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (chat_id, user_id),
+                FOREIGN KEY (chat_id) REFERENCES clubes(chat_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS progreso (
+                chat_id        INTEGER NOT NULL,
+                user_id        INTEGER NOT NULL,
+                version_bloque INTEGER NOT NULL,
+                leido_en       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (chat_id, user_id, version_bloque),
+                FOREIGN KEY (chat_id) REFERENCES clubes(chat_id) ON DELETE CASCADE,
+                FOREIGN KEY (chat_id, user_id)
+                    REFERENCES lectores(chat_id, user_id) ON DELETE CASCADE
+            );
+        """)
+
+
+def registrar_club(chat_id: int, nombre_grupo: str | None = None):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            INSERT INTO clubes (chat_id, nombre_grupo)
+            VALUES (?, ?)
+            ON CONFLICT(chat_id) DO UPDATE SET
+                nombre_grupo = COALESCE(excluded.nombre_grupo, clubes.nombre_grupo),
+                actualizado_en = CURRENT_TIMESTAMP
+        """, (chat_id, nombre_grupo))
+
+
+def ver_club(chat_id: int):
+    with closing(_conectar()) as conn:
+        row = conn.execute("""
+            SELECT chat_id, nombre_grupo, libro, bloque, version_bloque
+            FROM clubes
+            WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def cambiar_libro(chat_id: int, nombre_grupo: str | None, libro: str):
+    registrar_club(chat_id, nombre_grupo)
+
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes
+            SET libro = ?,
+                bloque = NULL,
+                version_bloque = 1,
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE chat_id = ?
+        """, (libro, chat_id))
+
+        conn.execute("DELETE FROM progreso WHERE chat_id = ?", (chat_id,))
+        conn.execute("DELETE FROM lectores WHERE chat_id = ?", (chat_id,))
+
+
+def cambiar_bloque(chat_id: int, nombre_grupo: str | None, bloque: str):
+    registrar_club(chat_id, nombre_grupo)
+
+    with closing(_conectar()) as conn, conn:
+        actual = conn.execute("""
+            SELECT version_bloque
+            FROM clubes
+            WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+
+        nueva_version = (actual["version_bloque"] if actual else 0) + 1
+
+        conn.execute("""
+            UPDATE clubes
+            SET bloque = ?,
+                version_bloque = ?,
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE chat_id = ?
+        """, (bloque, nueva_version, chat_id))
+
+        conn.execute("DELETE FROM progreso WHERE chat_id = ?", (chat_id,))
+
+
+def apuntar_lector(chat_id: int, nombre_grupo: str | None, user_id: int, nombre: str, username: str | None):
+    registrar_club(chat_id, nombre_grupo)
+
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            INSERT INTO lectores (chat_id, user_id, nombre, username)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(chat_id, user_id) DO UPDATE SET
+                nombre = excluded.nombre,
+                username = excluded.username
+        """, (chat_id, user_id, nombre, username))
+
+
+def borrar_lector(chat_id: int, user_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            DELETE FROM lectores
+            WHERE chat_id = ? AND user_id = ?
+        """, (chat_id, user_id))
+
+
+def marcar_leido(chat_id: int, user_id: int):
+    with closing(_conectar()) as conn, conn:
+        club = conn.execute("""
+            SELECT version_bloque, bloque
+            FROM clubes
+            WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+
+        if not club or not club["bloque"]:
+            raise ValueError("No hay bloque activo en este grupo.")
+
+        lector = conn.execute("""
+            SELECT 1
+            FROM lectores
+            WHERE chat_id = ? AND user_id = ?
+        """, (chat_id, user_id)).fetchone()
+
+        if not lector:
+            raise ValueError("Primero tienes que apuntarte con /meapunto.")
+
+        conn.execute("""
+            INSERT INTO progreso (chat_id, user_id, version_bloque)
+            VALUES (?, ?, ?)
+            ON CONFLICT(chat_id, user_id, version_bloque) DO NOTHING
+        """, (chat_id, user_id, club["version_bloque"]))
+
+
+def ver_lectores(chat_id: int):
+    with closing(_conectar()) as conn:
+        rows = conn.execute("""
+            SELECT user_id, nombre, username
+            FROM lectores
+            WHERE chat_id = ?
+            ORDER BY LOWER(nombre)
+        """, (chat_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def quienes_leyeron(chat_id: int):
+    with closing(_conectar()) as conn:
+        club = conn.execute("""
+            SELECT version_bloque
+            FROM clubes
+            WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+
+        if not club:
+            return []
+
+        rows = conn.execute("""
+            SELECT l.user_id, l.nombre, l.username
+            FROM progreso p
+            JOIN lectores l
+              ON l.chat_id = p.chat_id
+             AND l.user_id = p.user_id
+            WHERE p.chat_id = ?
+              AND p.version_bloque = ?
+            ORDER BY LOWER(l.nombre)
+        """, (chat_id, club["version_bloque"])).fetchall()
+
+        return [dict(r) for r in rows]
+
+
+def quienes_faltan(chat_id: int):
+    with closing(_conectar()) as conn:
+        club = conn.execute("""
+            SELECT version_bloque
+            FROM clubes
+            WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+
+        if not club:
+            return []
+
+        rows = conn.execute("""
+            SELECT l.user_id, l.nombre, l.username
+            FROM lectores l
+            LEFT JOIN progreso p
+              ON p.chat_id = l.chat_id
+             AND p.user_id = l.user_id
+             AND p.version_bloque = ?
+            WHERE l.chat_id = ?
+              AND p.user_id IS NULL
+            ORDER BY LOWER(l.nombre)
+        """, (club["version_bloque"], chat_id)).fetchall()
+
+        return [dict(r) for r in rows]
