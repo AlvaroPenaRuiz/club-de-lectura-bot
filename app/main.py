@@ -1,6 +1,6 @@
 import os
 import logging
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, Defaults
 from telegram import Update
 
 from app.db import inicializar
@@ -31,7 +31,8 @@ logging.basicConfig(
 if __name__ == '__main__':
     inicializar()
 
-    app = ApplicationBuilder().token(TOKEN).build()
+    defaults = Defaults(do_quote=False)
+    app = ApplicationBuilder().token(TOKEN).defaults(defaults).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ayuda", ayuda))
