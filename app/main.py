@@ -14,6 +14,7 @@ from app.handlers import (
     meborro,
     apuntados,
     leido,
+    noleido,
     leidos,
     pendientes,
 )
@@ -43,6 +44,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("meborro", meborro))
     app.add_handler(CommandHandler("apuntados", apuntados))
     app.add_handler(CommandHandler("leido", leido))
+    app.add_handler(CommandHandler("noleido", noleido))
     app.add_handler(CommandHandler("leidos", leidos))
     app.add_handler(CommandHandler("pendientes", pendientes))
 

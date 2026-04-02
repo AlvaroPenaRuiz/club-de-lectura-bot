@@ -9,6 +9,7 @@ from app.db import (
     apuntar_lector,
     borrar_lector,
     marcar_leido,
+    desmarcar_leido,
     ver_lectores,
     quienes_leyeron,
     quienes_faltan,
@@ -57,6 +58,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/meborro — Borrarse de la lectura del libro actual\n"
         "/apuntados — Ver quién está apuntado\n"
         "/leido — Marcar el bloque como leído\n"
+        "/noleido — Desmarcar si lo marcaste por error\n"
         "/leidos — Ver quién ha terminado\n"
         "/pendientes — Ver quién falta"
     )
@@ -142,6 +144,14 @@ async def leido(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         marcar_leido(update.effective_chat.id, update.effective_user.id)
         await update.message.reply_text("✅ Marcado como leído para el bloque actual.")
+    except ValueError as e:
+        await update.message.reply_text(str(e))
+
+
+async def noleido(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        desmarcar_leido(update.effective_chat.id, update.effective_user.id)
+        await update.message.reply_text("↩️ Desmarcado. Ya no figuras como leído en este bloque.")
     except ValueError as e:
         await update.message.reply_text(str(e))
 

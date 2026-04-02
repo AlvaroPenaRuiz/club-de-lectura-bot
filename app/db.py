@@ -160,6 +160,23 @@ def marcar_leido(chat_id: int, user_id: int):
         """, (chat_id, user_id, club["version_bloque"]))
 
 
+def desmarcar_leido(chat_id: int, user_id: int):
+    with closing(_conectar()) as conn, conn:
+        club = conn.execute("""
+            SELECT version_bloque, bloque
+            FROM clubes
+            WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+
+        if not club or not club["bloque"]:
+            raise ValueError("No hay bloque activo en este grupo.")
+
+        conn.execute("""
+            DELETE FROM progreso
+            WHERE chat_id = ? AND user_id = ? AND version_bloque = ?
+        """, (chat_id, user_id, club["version_bloque"]))
+
+
 def ver_lectores(chat_id: int):
     with closing(_conectar()) as conn:
         rows = conn.execute("""
