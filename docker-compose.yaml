@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
 
     environment:
-      TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TOKEN: ${TOKEN}
       WEBHOOK_URL: https://club-de-lectura-bot.alvaropenaruiz.com/telegram/webhook
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
       SQLITE_PATH: /data/app.db
