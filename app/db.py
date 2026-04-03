@@ -62,21 +62,6 @@ def inicializar():
             );
         """)
 
-        # Migración: añadir columnas de metadatos si no existen
-        columnas = {r[1] for r in conn.execute("PRAGMA table_info(clubes)").fetchall()}
-        nuevas = [
-            ("autor", "TEXT"),
-            ("tematica", "TEXT"),
-            ("caracteristicas", "TEXT"),
-            ("formatos", "TEXT"),
-            ("paginas", "INTEGER"),
-            ("sinopsis", "TEXT"),
-            ("saga", "TEXT"),
-        ]
-        for col, tipo in nuevas:
-            if col not in columnas:
-                conn.execute(f"ALTER TABLE clubes ADD COLUMN {col} {tipo}")
-
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
     with closing(_conectar()) as conn, conn:
