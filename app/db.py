@@ -23,8 +23,8 @@ def inicializar():
                 chat_id       INTEGER PRIMARY KEY,
                 nombre_grupo  TEXT,
                 libro         TEXT,
-                bloque        TEXT,
-                version_bloque INTEGER NOT NULL DEFAULT 1,
+                capitulos     TEXT,
+                version_capitulos INTEGER NOT NULL DEFAULT 1,
                 actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -39,11 +39,11 @@ def inicializar():
             );
 
             CREATE TABLE IF NOT EXISTS progreso (
-                chat_id        INTEGER NOT NULL,
-                user_id        INTEGER NOT NULL,
-                version_bloque INTEGER NOT NULL,
-                leido_en       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (chat_id, user_id, version_bloque),
+                chat_id           INTEGER NOT NULL,
+                user_id           INTEGER NOT NULL,
+                version_capitulos INTEGER NOT NULL,
+                leido_en          TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (chat_id, user_id, version_capitulos),
                 FOREIGN KEY (chat_id) REFERENCES clubes(chat_id) ON DELETE CASCADE,
                 FOREIGN KEY (chat_id, user_id)
                     REFERENCES lectores(chat_id, user_id) ON DELETE CASCADE
@@ -54,6 +54,17 @@ def inicializar():
                 autorizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
         """)
+
+        # Migración: renombrar columnas antiguas si existen
+        columnas = [r[1] for r in conn.execute("PRAGMA table_info(clubes)").fetchall()]
+        if "bloque" in columnas:
+            conn.execute("ALTER TABLE clubes RENAME COLUMN bloque TO capitulos")
+        if "version_bloque" in columnas:
+            conn.execute("ALTER TABLE clubes RENAME COLUMN version_bloque TO version_capitulos")
+
+        columnas_p = [r[1] for r in conn.execute("PRAGMA table_info(progreso)").fetchall()]
+        if "version_bloque" in columnas_p:
+            conn.execute("ALTER TABLE progreso RENAME COLUMN version_bloque TO version_capitulos")
 
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
@@ -70,7 +81,7 @@ def registrar_club(chat_id: int, nombre_grupo: str | None = None):
 def ver_club(chat_id: int):
     with closing(_conectar()) as conn:
         row = conn.execute("""
-            SELECT chat_id, nombre_grupo, libro, bloque, version_bloque
+            SELECT chat_id, nombre_grupo, libro, capitulos, version_capitulos
             FROM clubes
             WHERE chat_id = ?
         """, (chat_id,)).fetchone()
@@ -84,8 +95,8 @@ def cambiar_libro(chat_id: int, nombre_grupo: str | None, libro: str):
         conn.execute("""
             UPDATE clubes
             SET libro = ?,
-                bloque = NULL,
-                version_bloque = 1,
+                capitulos = NULL,
+                version_capitulos = 1,
                 actualizado_en = CURRENT_TIMESTAMP
             WHERE chat_id = ?
         """, (libro, chat_id))
@@ -94,25 +105,25 @@ def cambiar_libro(chat_id: int, nombre_grupo: str | None, libro: str):
         conn.execute("DELETE FROM lectores WHERE chat_id = ?", (chat_id,))
 
 
-def cambiar_bloque(chat_id: int, nombre_grupo: str | None, bloque: str):
+def cambiar_capitulos(chat_id: int, nombre_grupo: str | None, capitulos: str):
     registrar_club(chat_id, nombre_grupo)
 
     with closing(_conectar()) as conn, conn:
         actual = conn.execute("""
-            SELECT version_bloque
+            SELECT version_capitulos
             FROM clubes
             WHERE chat_id = ?
         """, (chat_id,)).fetchone()
 
-        nueva_version = (actual["version_bloque"] if actual else 0) + 1
+        nueva_version = (actual["version_capitulos"] if actual else 0) + 1
 
         conn.execute("""
             UPDATE clubes
-            SET bloque = ?,
-                version_bloque = ?,
+            SET capitulos = ?,
+                version_capitulos = ?,
                 actualizado_en = CURRENT_TIMESTAMP
             WHERE chat_id = ?
-        """, (bloque, nueva_version, chat_id))
+        """, (capitulos, nueva_version, chat_id))
 
         conn.execute("DELETE FROM progreso WHERE chat_id = ?", (chat_id,))
 
@@ -141,13 +152,13 @@ def borrar_lector(chat_id: int, user_id: int):
 def marcar_leido(chat_id: int, user_id: int):
     with closing(_conectar()) as conn, conn:
         club = conn.execute("""
-            SELECT version_bloque, bloque
+            SELECT version_capitulos, capitulos
             FROM clubes
             WHERE chat_id = ?
         """, (chat_id,)).fetchone()
 
-        if not club or not club["bloque"]:
-            raise ValueError("No hay bloque activo en este grupo.")
+        if not club or not club["capitulos"]:
+            raise ValueError("No hay capítulos activos en este grupo.")
 
         lector = conn.execute("""
             SELECT 1
@@ -159,27 +170,27 @@ def marcar_leido(chat_id: int, user_id: int):
             raise ValueError("Primero tienes que apuntarte con /meapunto.")
 
         conn.execute("""
-            INSERT INTO progreso (chat_id, user_id, version_bloque)
+            INSERT INTO progreso (chat_id, user_id, version_capitulos)
             VALUES (?, ?, ?)
-            ON CONFLICT(chat_id, user_id, version_bloque) DO NOTHING
-        """, (chat_id, user_id, club["version_bloque"]))
+            ON CONFLICT(chat_id, user_id, version_capitulos) DO NOTHING
+        """, (chat_id, user_id, club["version_capitulos"]))
 
 
 def desmarcar_leido(chat_id: int, user_id: int):
     with closing(_conectar()) as conn, conn:
         club = conn.execute("""
-            SELECT version_bloque, bloque
+            SELECT version_capitulos, capitulos
             FROM clubes
             WHERE chat_id = ?
         """, (chat_id,)).fetchone()
 
-        if not club or not club["bloque"]:
-            raise ValueError("No hay bloque activo en este grupo.")
+        if not club or not club["capitulos"]:
+            raise ValueError("No hay capítulos activos en este grupo.")
 
         conn.execute("""
             DELETE FROM progreso
-            WHERE chat_id = ? AND user_id = ? AND version_bloque = ?
-        """, (chat_id, user_id, club["version_bloque"]))
+            WHERE chat_id = ? AND user_id = ? AND version_capitulos = ?
+        """, (chat_id, user_id, club["version_capitulos"]))
 
 
 def ver_lectores(chat_id: int):
@@ -220,7 +231,7 @@ def desautorizar_grupo(chat_id: int):
 def quienes_leyeron(chat_id: int):
     with closing(_conectar()) as conn:
         club = conn.execute("""
-            SELECT version_bloque
+            SELECT version_capitulos
             FROM clubes
             WHERE chat_id = ?
         """, (chat_id,)).fetchone()
@@ -235,9 +246,9 @@ def quienes_leyeron(chat_id: int):
               ON l.chat_id = p.chat_id
              AND l.user_id = p.user_id
             WHERE p.chat_id = ?
-              AND p.version_bloque = ?
+              AND p.version_capitulos = ?
             ORDER BY LOWER(l.nombre)
-        """, (chat_id, club["version_bloque"])).fetchall()
+        """, (chat_id, club["version_capitulos"])).fetchall()
 
         return [dict(r) for r in rows]
 
@@ -245,7 +256,7 @@ def quienes_leyeron(chat_id: int):
 def quienes_faltan(chat_id: int):
     with closing(_conectar()) as conn:
         club = conn.execute("""
-            SELECT version_bloque
+            SELECT version_capitulos
             FROM clubes
             WHERE chat_id = ?
         """, (chat_id,)).fetchone()
@@ -259,10 +270,10 @@ def quienes_faltan(chat_id: int):
             LEFT JOIN progreso p
               ON p.chat_id = l.chat_id
              AND p.user_id = l.user_id
-             AND p.version_bloque = ?
+             AND p.version_capitulos = ?
             WHERE l.chat_id = ?
               AND p.user_id IS NULL
             ORDER BY LOWER(l.nombre)
-        """, (club["version_bloque"], chat_id)).fetchall()
+        """, (club["version_capitulos"], chat_id)).fetchall()
 
         return [dict(r) for r in rows]

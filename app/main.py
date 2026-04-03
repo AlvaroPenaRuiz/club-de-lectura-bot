@@ -4,14 +4,14 @@ from telegram.ext import ApplicationBuilder, CommandHandler, Defaults, filters
 from telegram import Update
 
 from app.db import inicializar
+from app.utils import configurar_whitelist
 from app.handlers import (
-    configurar_whitelist,
     check_whitelist,
     start,
     ayuda,
     estado,
     setlibro,
-    setbloque,
+    setcapitulos,
     meapunto,
     meborro,
     apuntados,
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("ayuda", ayuda))
     app.add_handler(CommandHandler("estado", estado))
     app.add_handler(CommandHandler("cambiarlibro", setlibro))
-    app.add_handler(CommandHandler("cambiarbloque", setbloque))
+    app.add_handler(CommandHandler("cambiarcapitulos", setcapitulos))
     app.add_handler(CommandHandler("meapunto", meapunto))
     app.add_handler(CommandHandler("meborro", meborro))
     app.add_handler(CommandHandler("apuntados", apuntados))

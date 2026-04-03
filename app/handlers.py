@@ -5,41 +5,29 @@ from telegram.constants import ChatMemberStatus
 from app.db import (
     ver_club,
     cambiar_libro,
-    cambiar_bloque,
+    cambiar_capitulos,
     apuntar_lector,
     borrar_lector,
     marcar_leido,
     desmarcar_leido,
     ver_lectores,
-    quienes_leyeron,
-    quienes_faltan,
     grupo_autorizado,
     autorizar_grupo,
     desautorizar_grupo,
 )
-
-
-def nombre_de_usuario(user) -> str:
-    nombre = " ".join(p for p in [user.first_name, user.last_name] if p).strip()
-    return nombre or user.username or str(user.id)
-
-
-WHITELIST_ENABLED = True
-OWNER_ID: int | None = None
-
-
-def configurar_whitelist(enabled: bool, owner_id: int | None):
-    global WHITELIST_ENABLED, OWNER_ID
-    WHITELIST_ENABLED = enabled
-    OWNER_ID = owner_id
-
-
-def _es_owner(user_id: int) -> bool:
-    return OWNER_ID is not None and user_id == OWNER_ID
+from app.utils import (
+    configurar_whitelist,
+    es_owner,
+    nombre_de_usuario,
+    lista_progreso,
+    parsear_capitulos,
+    formato_capitulos,
+)
 
 
 async def check_whitelist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Filtro que se ejecuta antes de cada comando. Lanza ApplicationHandlerStop si no autorizado."""
+    from app.utils import WHITELIST_ENABLED
     if not WHITELIST_ENABLED:
         return
     if update.effective_chat and grupo_autorizado(update.effective_chat.id):
@@ -47,22 +35,11 @@ async def check_whitelist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Permitir siempre /autorizar al owner
     if update.message and update.message.text:
         cmd = update.message.text.split()[0].split("@")[0]
-        if cmd == "/autorizar" and _es_owner(update.effective_user.id):
+        if cmd == "/autorizar" and es_owner(update.effective_user.id):
             return
     if update.message:
         await update.message.reply_text("⛔ Este grupo no está autorizado. Contacta con el propietario del bot.")
     raise ApplicationHandlerStop()
-
-
-def _lista_progreso(chat_id: int) -> str:
-    leidos = quienes_leyeron(chat_id)
-    faltan = quienes_faltan(chat_id)
-    ids_leidos = {r['user_id'] for r in leidos}
-    lineas = []
-    for r in leidos + faltan:
-        marca = "✅" if r['user_id'] in ids_leidos else "⬜"
-        lineas.append(f"{marca} {r['nombre']}")
-    return "\n".join(lineas)
 
 
 async def es_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -86,15 +63,15 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/ayuda — Muestra esta ayuda\n"
         "/estado — Estado actual del club\n"
         "/cambiarlibro <título> — Cambiar el libro (admin)\n"
-        "/cambiarbloque <rango> — Cambiar el bloque (admin)\n"
+        "/capitulos <rango> — Cambiar los capítulos (admin)\n"
         "/meapunto — Apuntarse a la lectura del libro actual\n"
         "/meborro — Borrarse de la lectura del libro actual\n"
         "/apuntados — Ver quién está apuntado\n"
-        "/leido — Marcar el bloque como leído\n"
+        "/leido — Marcar los capítulos como leídos\n"
         "/noleido — Desmarcar si lo marcaste por error\n"
-        "/progreso — Ver el progreso del bloque"
+        "/progreso — Ver el progreso de los capítulos"
     )
-    if _es_owner(update.effective_user.id):
+    if es_owner(update.effective_user.id):
         texto += (
             "\n\n🔧 Comandos de propietario:\n"
             "/autorizar — Autorizar este grupo\n"
@@ -109,9 +86,10 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Todavía no hay nada configurado en este grupo.")
         return
 
+    caps = formato_capitulos(club['capitulos']) if club['capitulos'] else 'No definidos'
     texto = (
         f"📖 Libro: {club['libro'] or 'No definido'}\n"
-        f"📑 Bloque: {club['bloque'] or 'No definido'}"
+        f"📑 {caps}"
     )
     await update.message.reply_text(texto)
 
@@ -123,25 +101,41 @@ async def setlibro(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     titulo = " ".join(context.args).strip()
     if not titulo:
-        await update.message.reply_text("Uso: /setlibro Título del libro")
+        await update.message.reply_text("Uso: /cambiarlibro Título del libro")
         return
 
     cambiar_libro(update.effective_chat.id, update.effective_chat.title, titulo)
     await update.message.reply_text(f"📖 Libro actualizado a: {titulo}")
 
 
-async def setbloque(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def setcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await es_admin(update, context):
-        await update.message.reply_text("Solo los admins pueden cambiar el bloque.")
+        await update.message.reply_text("Solo los admins pueden cambiar los capítulos.")
         return
 
-    bloque = " ".join(context.args).strip()
-    if not bloque:
-        await update.message.reply_text("Uso: /setbloque 5-8  o  /setbloque 5,6,7,8")
+    texto = " ".join(context.args).strip()
+    if not texto:
+        await update.message.reply_text(
+            "Uso:\n"
+            "/capitulos 5-8\n"
+            "/capitulos 5,6,7,8\n"
+            "/capitulos 5, 6, 7, 8"
+        )
         return
 
-    cambiar_bloque(update.effective_chat.id, update.effective_chat.title, bloque)
-    await update.message.reply_text(f"📑 Bloque actualizado a: {bloque}")
+    caps = parsear_capitulos(texto)
+    if caps is None:
+        await update.message.reply_text(
+            "❌ Formato no válido. Usa uno de estos formatos:\n"
+            "• Rango: 5-8\n"
+            "• Lista: 5,6,7,8\n"
+            "• Lista con espacios: 5, 6, 7, 8"
+        )
+        return
+
+    caps_str = ",".join(str(c) for c in caps)
+    cambiar_capitulos(update.effective_chat.id, update.effective_chat.title, caps_str)
+    await update.message.reply_text(f"📑 Actualizados: {formato_capitulos(caps_str)}")
 
 
 async def meapunto(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -174,7 +168,7 @@ async def apuntados(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def leido(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         marcar_leido(update.effective_chat.id, update.effective_user.id)
-        await update.message.reply_text("✅ Marcado como leído para el bloque actual.")
+        await update.message.reply_text("✅ Marcado como leído para los capítulos actuales.")
     except ValueError as e:
         await update.message.reply_text(str(e))
 
@@ -182,13 +176,13 @@ async def leido(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def noleido(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         desmarcar_leido(update.effective_chat.id, update.effective_user.id)
-        await update.message.reply_text("↩️ Desmarcado. Ya no figuras como leído en este bloque.")
+        await update.message.reply_text("↩️ Desmarcado. Ya no figuras como leído en estos capítulos.")
     except ValueError as e:
         await update.message.reply_text(str(e))
 
 
 async def progreso(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lista = _lista_progreso(update.effective_chat.id)
+    lista = lista_progreso(update.effective_chat.id)
     if not lista:
         await update.message.reply_text("No hay nadie apuntado todavía.")
         return
@@ -200,7 +194,7 @@ async def progreso(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def autorizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not _es_owner(update.effective_user.id):
+    if not es_owner(update.effective_user.id):
         await update.message.reply_text("Solo el propietario del bot puede usar este comando.")
         return
 
@@ -210,7 +204,7 @@ async def autorizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def desautorizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not _es_owner(update.effective_user.id):
+    if not es_owner(update.effective_user.id):
         await update.message.reply_text("Solo el propietario del bot puede usar este comando.")
         return
 
