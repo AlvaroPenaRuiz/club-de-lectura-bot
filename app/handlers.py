@@ -117,9 +117,9 @@ async def setcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not texto:
         await update.message.reply_text(
             "Uso:\n"
-            "/capitulos 5-8\n"
-            "/capitulos 5,6,7,8\n"
-            "/capitulos 5, 6, 7, 8"
+            "/cambiarcapitulos 5-8\n"
+            "/cambiarcapitulos 5,6,7,8\n"
+            "/cambiarcapitulos 5, 6, 7, 8"
         )
         return
 
