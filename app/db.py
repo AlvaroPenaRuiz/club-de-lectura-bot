@@ -55,17 +55,6 @@ def inicializar():
             );
         """)
 
-        # Migración: renombrar columnas antiguas si existen
-        columnas = [r[1] for r in conn.execute("PRAGMA table_info(clubes)").fetchall()]
-        if "bloque" in columnas:
-            conn.execute("ALTER TABLE clubes RENAME COLUMN bloque TO capitulos")
-        if "version_bloque" in columnas:
-            conn.execute("ALTER TABLE clubes RENAME COLUMN version_bloque TO version_capitulos")
-
-        columnas_p = [r[1] for r in conn.execute("PRAGMA table_info(progreso)").fetchall()]
-        if "version_bloque" in columnas_p:
-            conn.execute("ALTER TABLE progreso RENAME COLUMN version_bloque TO version_capitulos")
-
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
     with closing(_conectar()) as conn, conn:
