@@ -9,6 +9,7 @@ from app.handlers import (
     check_whitelist,
     start,
     ayuda,
+    info,
     estado,
     setlibro,
     setcapitulos,
@@ -18,6 +19,14 @@ from app.handlers import (
     leido,
     noleido,
     progreso,
+    modificartitulo,
+    modificarautor,
+    modificartematica,
+    modificarcaracteristicas,
+    modificarformatos,
+    modificarpaginas,
+    modificarsinopsis,
+    modificarsaga,
     autorizar,
     desautorizar,
 )
@@ -47,9 +56,18 @@ if __name__ == '__main__':
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ayuda", ayuda))
+    app.add_handler(CommandHandler("info", info))
     app.add_handler(CommandHandler("estado", estado))
     app.add_handler(CommandHandler("cambiarlibro", setlibro))
     app.add_handler(CommandHandler("cambiarcapitulos", setcapitulos))
+    app.add_handler(CommandHandler("modificartitulo", modificartitulo))
+    app.add_handler(CommandHandler("modificarautor", modificarautor))
+    app.add_handler(CommandHandler("modificartematica", modificartematica))
+    app.add_handler(CommandHandler("modificarcaracteristicas", modificarcaracteristicas))
+    app.add_handler(CommandHandler("modificarformatos", modificarformatos))
+    app.add_handler(CommandHandler("modificarpaginas", modificarpaginas))
+    app.add_handler(CommandHandler("modificarsinopsis", modificarsinopsis))
+    app.add_handler(CommandHandler("modificarsaga", modificarsaga))
     app.add_handler(CommandHandler("meapunto", meapunto))
     app.add_handler(CommandHandler("meborro", meborro))
     app.add_handler(CommandHandler("apuntados", apuntados))

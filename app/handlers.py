@@ -6,6 +6,7 @@ from app.db import (
     ver_club,
     cambiar_libro,
     cambiar_capitulos,
+    modificar_campo,
     apuntar_lector,
     borrar_lector,
     marcar_leido,
@@ -62,10 +63,19 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start — Mensaje de bienvenida\n"
         "/ayuda — Muestra esta ayuda\n"
         "/estado — Estado actual del club\n"
+        "/info — Información del libro\n"
         "/cambiarlibro <título> — Cambiar el libro (admin)\n"
         "/cambiarcapitulos <rango> — Cambiar los capítulos (admin)\n"
-        "/meapunto — Apuntarse a la lectura del libro actual\n"
-        "/meborro — Borrarse de la lectura del libro actual\n"
+        "/modificartitulo <texto> — (admin)\n"
+        "/modificarautor <texto> — (admin)\n"
+        "/modificartematica <texto> — (admin)\n"
+        "/modificarcaracteristicas <texto> — (admin)\n"
+        "/modificarformatos <texto> — (admin)\n"
+        "/modificarpaginas <número> — (admin)\n"
+        "/modificarsinopsis <texto> — (admin)\n"
+        "/modificarsaga <texto> — (admin)\n"
+        "/meapunto — Apuntarse a la lectura\n"
+        "/meborro — Borrarse de la lectura\n"
         "/apuntados — Ver quién está apuntado\n"
         "/leido — Marcar los capítulos como leídos\n"
         "/noleido — Desmarcar si lo marcaste por error\n"
@@ -78,6 +88,27 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/desautorizar — Desautorizar este grupo"
         )
     await update.message.reply_text(texto)
+
+
+async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    club = ver_club(update.effective_chat.id)
+    if not club or not club['libro']:
+        await update.message.reply_text("No hay ningún libro configurado.")
+        return
+
+    campos = [
+        ("📖 Título", club['libro']),
+        ("✍️ Autor", club.get('autor')),
+        ("🎭 Temática", club.get('tematica')),
+        ("✨ Características", club.get('caracteristicas')),
+        ("📚 Formatos", club.get('formatos')),
+        ("📄 Páginas", club.get('paginas')),
+        ("📝 Sinopsis", club.get('sinopsis')),
+        ("🗂️ Saga", club.get('saga')),
+    ]
+
+    lineas = [f"{etiqueta}: {valor}" for etiqueta, valor in campos if valor]
+    await update.message.reply_text("\n".join(lineas))
 
 
 async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -188,6 +219,56 @@ async def progreso(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(lista)
+
+
+# ─── Comandos de modificación de libro (admin) ───────────────
+
+
+NOMBRES_CAMPO = {
+    "titulo": "título",
+    "autor": "autor",
+    "tematica": "temática",
+    "caracteristicas": "características",
+    "formatos": "formatos",
+    "paginas": "páginas",
+    "sinopsis": "sinopsis",
+    "saga": "saga",
+}
+
+
+def _handler_modificar(campo: str):
+    async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not await es_admin(update, context):
+            await update.message.reply_text("Solo los admins pueden modificar el libro.")
+            return
+
+        club = ver_club(update.effective_chat.id)
+        if not club or not club['libro']:
+            await update.message.reply_text("Primero hay que configurar un libro con /cambiarlibro.")
+            return
+
+        valor = " ".join(context.args).strip()
+        if not valor:
+            await update.message.reply_text(f"Uso: /modificar{campo} <valor>")
+            return
+
+        try:
+            modificar_campo(update.effective_chat.id, campo, valor)
+            await update.message.reply_text(f"✅ {NOMBRES_CAMPO[campo].capitalize()} actualizado.")
+        except ValueError as e:
+            await update.message.reply_text(str(e))
+
+    return handler
+
+
+modificartitulo = _handler_modificar("titulo")
+modificarautor = _handler_modificar("autor")
+modificartematica = _handler_modificar("tematica")
+modificarcaracteristicas = _handler_modificar("caracteristicas")
+modificarformatos = _handler_modificar("formatos")
+modificarpaginas = _handler_modificar("paginas")
+modificarsinopsis = _handler_modificar("sinopsis")
+modificarsaga = _handler_modificar("saga")
 
 
 # ─── Comandos de propietario ─────────────────────────────────

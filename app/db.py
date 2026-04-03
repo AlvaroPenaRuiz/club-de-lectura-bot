@@ -23,6 +23,13 @@ def inicializar():
                 chat_id       INTEGER PRIMARY KEY,
                 nombre_grupo  TEXT,
                 libro         TEXT,
+                autor         TEXT,
+                tematica      TEXT,
+                caracteristicas TEXT,
+                formatos      TEXT,
+                paginas       INTEGER,
+                sinopsis      TEXT,
+                saga          TEXT,
                 capitulos     TEXT,
                 version_capitulos INTEGER NOT NULL DEFAULT 1,
                 actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -70,7 +77,9 @@ def registrar_club(chat_id: int, nombre_grupo: str | None = None):
 def ver_club(chat_id: int):
     with closing(_conectar()) as conn:
         row = conn.execute("""
-            SELECT chat_id, nombre_grupo, libro, capitulos, version_capitulos
+            SELECT chat_id, nombre_grupo, libro, autor, tematica,
+                   caracteristicas, formatos, paginas, sinopsis, saga,
+                   capitulos, version_capitulos
             FROM clubes
             WHERE chat_id = ?
         """, (chat_id,)).fetchone()
@@ -84,6 +93,13 @@ def cambiar_libro(chat_id: int, nombre_grupo: str | None, libro: str):
         conn.execute("""
             UPDATE clubes
             SET libro = ?,
+                autor = NULL,
+                tematica = NULL,
+                caracteristicas = NULL,
+                formatos = NULL,
+                paginas = NULL,
+                sinopsis = NULL,
+                saga = NULL,
                 capitulos = NULL,
                 version_capitulos = 1,
                 actualizado_en = CURRENT_TIMESTAMP
@@ -92,6 +108,38 @@ def cambiar_libro(chat_id: int, nombre_grupo: str | None, libro: str):
 
         conn.execute("DELETE FROM progreso WHERE chat_id = ?", (chat_id,))
         conn.execute("DELETE FROM lectores WHERE chat_id = ?", (chat_id,))
+
+
+CAMPOS_LIBRO = {
+    "titulo": "libro",
+    "autor": "autor",
+    "tematica": "tematica",
+    "caracteristicas": "caracteristicas",
+    "formatos": "formatos",
+    "paginas": "paginas",
+    "sinopsis": "sinopsis",
+    "saga": "saga",
+}
+
+
+def modificar_campo(chat_id: int, campo: str, valor: str):
+    columna = CAMPOS_LIBRO.get(campo)
+    if not columna:
+        raise ValueError(f"Campo desconocido: {campo}")
+
+    if columna == "paginas":
+        try:
+            valor = int(valor)
+        except ValueError:
+            raise ValueError("El número de páginas debe ser un número entero.")
+
+    with closing(_conectar()) as conn, conn:
+        conn.execute(f"""
+            UPDATE clubes
+            SET {columna} = ?,
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE chat_id = ?
+        """, (valor, chat_id))
 
 
 def cambiar_capitulos(chat_id: int, nombre_grupo: str | None, capitulos: str):
