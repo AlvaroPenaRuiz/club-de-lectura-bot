@@ -63,7 +63,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/ayuda — Muestra esta ayuda\n"
         "/estado — Estado actual del club\n"
         "/cambiarlibro <título> — Cambiar el libro (admin)\n"
-        "/capitulos <rango> — Cambiar los capítulos (admin)\n"
+        "/cambiarcapitulos <rango> — Cambiar los capítulos (admin)\n"
         "/meapunto — Apuntarse a la lectura del libro actual\n"
         "/meborro — Borrarse de la lectura del libro actual\n"
         "/apuntados — Ver quién está apuntado\n"
