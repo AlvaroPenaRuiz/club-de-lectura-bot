@@ -92,8 +92,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/apuntados — Ver quién está apuntado\n"
         "/leido — Marcar el bloque como leído\n"
         "/noleido — Desmarcar si lo marcaste por error\n"
-        "/leidos — Ver quién ha terminado\n"
-        "/pendientes — Ver quién falta"
+        "/progreso — Ver el progreso del bloque"
     )
     if _es_owner(update.effective_user.id):
         texto += (
@@ -110,17 +109,10 @@ async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Todavía no hay nada configurado en este grupo.")
         return
 
-    leidos = quienes_leyeron(update.effective_chat.id)
-    faltan = quienes_faltan(update.effective_chat.id)
-    lista = _lista_progreso(update.effective_chat.id)
-
     texto = (
         f"📖 Libro: {club['libro'] or 'No definido'}\n"
-        f"📑 Bloque: {club['bloque'] or 'No definido'}\n"
-        f"✅ Leídos: {len(leidos)} | ⏳ Pendientes: {len(faltan)}"
+        f"📑 Bloque: {club['bloque'] or 'No definido'}"
     )
-    if lista:
-        texto += f"\n\n{lista}"
     await update.message.reply_text(texto)
 
 
@@ -195,29 +187,13 @@ async def noleido(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(str(e))
 
 
-async def leidos(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    leyeron = quienes_leyeron(update.effective_chat.id)
+async def progreso(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lista = _lista_progreso(update.effective_chat.id)
     if not lista:
         await update.message.reply_text("No hay nadie apuntado todavía.")
         return
 
-    texto = f"Ya lo han leído {len(leyeron)}:\n\n{lista}"
-    await update.message.reply_text(texto)
-
-
-async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    faltan = quienes_faltan(update.effective_chat.id)
-    lista = _lista_progreso(update.effective_chat.id)
-    if not lista:
-        await update.message.reply_text("No hay nadie apuntado todavía.")
-        return
-
-    if not faltan:
-        texto = f"¡No queda nadie pendiente! 🎉\n\n{lista}"
-    else:
-        texto = f"Aún quedan {len(faltan)}:\n\n{lista}"
-    await update.message.reply_text(texto)
+    await update.message.reply_text(lista)
 
 
 # ─── Comandos de propietario ─────────────────────────────────

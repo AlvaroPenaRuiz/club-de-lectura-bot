@@ -17,8 +17,7 @@ from app.handlers import (
     apuntados,
     leido,
     noleido,
-    leidos,
-    pendientes,
+    progreso,
     autorizar,
     desautorizar,
 )
@@ -56,8 +55,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("apuntados", apuntados))
     app.add_handler(CommandHandler("leido", leido))
     app.add_handler(CommandHandler("noleido", noleido))
-    app.add_handler(CommandHandler("leidos", leidos))
-    app.add_handler(CommandHandler("pendientes", pendientes))
+    app.add_handler(CommandHandler("progreso", progreso))
     app.add_handler(CommandHandler("autorizar", autorizar))
     app.add_handler(CommandHandler("desautorizar", desautorizar))
 
