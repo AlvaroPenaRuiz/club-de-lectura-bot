@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ApplicationHandlerStop
 from telegram.constants import ChatMemberStatus
 
 from app.db import (
@@ -13,12 +13,45 @@ from app.db import (
     ver_lectores,
     quienes_leyeron,
     quienes_faltan,
+    grupo_autorizado,
+    autorizar_grupo,
+    desautorizar_grupo,
 )
 
 
 def nombre_de_usuario(user) -> str:
     nombre = " ".join(p for p in [user.first_name, user.last_name] if p).strip()
     return nombre or user.username or str(user.id)
+
+
+WHITELIST_ENABLED = True
+OWNER_ID: int | None = None
+
+
+def configurar_whitelist(enabled: bool, owner_id: int | None):
+    global WHITELIST_ENABLED, OWNER_ID
+    WHITELIST_ENABLED = enabled
+    OWNER_ID = owner_id
+
+
+def _es_owner(user_id: int) -> bool:
+    return OWNER_ID is not None and user_id == OWNER_ID
+
+
+async def check_whitelist(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Filtro que se ejecuta antes de cada comando. Lanza ApplicationHandlerStop si no autorizado."""
+    if not WHITELIST_ENABLED:
+        return
+    if update.effective_chat and grupo_autorizado(update.effective_chat.id):
+        return
+    # Permitir siempre /autorizar al owner
+    if update.message and update.message.text:
+        cmd = update.message.text.split()[0].split("@")[0]
+        if cmd == "/autorizar" and _es_owner(update.effective_user.id):
+            return
+    if update.message:
+        await update.message.reply_text("⛔ Este grupo no está autorizado. Contacta con el propietario del bot.")
+    raise ApplicationHandlerStop()
 
 
 def _lista_progreso(chat_id: int) -> str:
@@ -62,6 +95,12 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/leidos — Ver quién ha terminado\n"
         "/pendientes — Ver quién falta"
     )
+    if _es_owner(update.effective_user.id):
+        texto += (
+            "\n\n🔧 Comandos de propietario:\n"
+            "/autorizar — Autorizar este grupo\n"
+            "/desautorizar — Desautorizar este grupo"
+        )
     await update.message.reply_text(texto)
 
 
@@ -179,3 +218,26 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         texto = f"Aún quedan {len(faltan)}:\n\n{lista}"
     await update.message.reply_text(texto)
+
+
+# ─── Comandos de propietario ─────────────────────────────────
+
+
+async def autorizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _es_owner(update.effective_user.id):
+        await update.message.reply_text("Solo el propietario del bot puede usar este comando.")
+        return
+
+    chat_id = update.effective_chat.id
+    autorizar_grupo(chat_id)
+    await update.message.reply_text(f"✅ Grupo autorizado (ID: {chat_id}).")
+
+
+async def desautorizar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _es_owner(update.effective_user.id):
+        await update.message.reply_text("Solo el propietario del bot puede usar este comando.")
+        return
+
+    chat_id = update.effective_chat.id
+    desautorizar_grupo(chat_id)
+    await update.message.reply_text(f"⛔ Grupo desautorizado (ID: {chat_id}).")

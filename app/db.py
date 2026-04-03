@@ -48,6 +48,11 @@ def inicializar():
                 FOREIGN KEY (chat_id, user_id)
                     REFERENCES lectores(chat_id, user_id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS whitelist (
+                chat_id      INTEGER PRIMARY KEY,
+                autorizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
         """)
 
 
@@ -186,6 +191,30 @@ def ver_lectores(chat_id: int):
             ORDER BY LOWER(nombre)
         """, (chat_id,)).fetchall()
         return [dict(r) for r in rows]
+
+
+# ─── Whitelist ───────────────────────────────────────────────
+
+
+def grupo_autorizado(chat_id: int) -> bool:
+    with closing(_conectar()) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM whitelist WHERE chat_id = ?", (chat_id,)
+        ).fetchone()
+        return row is not None
+
+
+def autorizar_grupo(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            INSERT INTO whitelist (chat_id) VALUES (?)
+            ON CONFLICT(chat_id) DO NOTHING
+        """, (chat_id,))
+
+
+def desautorizar_grupo(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("DELETE FROM whitelist WHERE chat_id = ?", (chat_id,))
 
 
 def quienes_leyeron(chat_id: int):

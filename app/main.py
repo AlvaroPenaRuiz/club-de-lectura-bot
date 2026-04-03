@@ -1,10 +1,12 @@
 import os
 import logging
-from telegram.ext import ApplicationBuilder, CommandHandler, Defaults
+from telegram.ext import ApplicationBuilder, CommandHandler, Defaults, filters
 from telegram import Update
 
 from app.db import inicializar
 from app.handlers import (
+    configurar_whitelist,
+    check_whitelist,
     start,
     ayuda,
     estado,
@@ -17,12 +19,16 @@ from app.handlers import (
     noleido,
     leidos,
     pendientes,
+    autorizar,
+    desautorizar,
 )
 
 TOKEN = os.getenv('TOKEN')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 WEBHOOK_SECRET = os.getenv('WEBHOOK_SECRET')
 APP_PORT = int(os.getenv('APP_PORT', '8080'))
+OWNER_ID = int(os.getenv('OWNER_ID', '0')) or None
+WHITELIST_ENABLED = os.getenv('WHITELIST_ENABLED', 'true').lower() != 'false'
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -31,9 +37,14 @@ logging.basicConfig(
 
 if __name__ == '__main__':
     inicializar()
+    configurar_whitelist(WHITELIST_ENABLED, OWNER_ID)
 
     defaults = Defaults(do_quote=False)
     app = ApplicationBuilder().token(TOKEN).defaults(defaults).build()
+
+    # Middleware de whitelist (grupo 0 = antes que los comandos de grupo 1)
+    from telegram.ext import TypeHandler
+    app.add_handler(TypeHandler(Update, check_whitelist), group=-1)
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ayuda", ayuda))
@@ -47,6 +58,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("noleido", noleido))
     app.add_handler(CommandHandler("leidos", leidos))
     app.add_handler(CommandHandler("pendientes", pendientes))
+    app.add_handler(CommandHandler("autorizar", autorizar))
+    app.add_handler(CommandHandler("desautorizar", desautorizar))
 
     if WEBHOOK_URL:
         app.run_webhook(

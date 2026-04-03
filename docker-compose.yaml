@@ -8,6 +8,8 @@ services:
 
     environment:
       TOKEN: ${TOKEN}
+      OWNER_ID: ${OWNER_ID}
+      WHITELIST_ENABLED: "true"
       WEBHOOK_URL: https://club-de-lectura-bot.alvaropenaruiz.com/telegram/webhook
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
       SQLITE_PATH: /data/app.db
