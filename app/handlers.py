@@ -169,7 +169,7 @@ async def setcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     caps_str = ",".join(str(c) for c in caps)
     cambiar_capitulos(update.effective_chat.id, update.effective_chat.title, caps_str)
-    await update.message.reply_text(f"📑 Actualizados: {formato_capitulos(caps_str)}")
+    await update.message.reply_text(f"📑 Toca leer: {formato_capitulos(caps_str)}")
 
 
 async def meapunto(update: Update, context: ContextTypes.DEFAULT_TYPE):
