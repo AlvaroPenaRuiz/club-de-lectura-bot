@@ -22,6 +22,7 @@ from app.handlers import (
     subircapitulos,
     vercapitulo,
     listarcapitulos,
+    resumen,
     modificartitulo,
     modificarautor,
     modificartematica,
@@ -81,6 +82,7 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/subircapitulos"), subircapitulos))
     app.add_handler(CommandHandler("vercapitulo", vercapitulo))
     app.add_handler(CommandHandler("listarcapitulos", listarcapitulos))
+    app.add_handler(CommandHandler("resumen", resumen))
     app.add_handler(CommandHandler("autorizar", autorizar))
     app.add_handler(CommandHandler("desautorizar", desautorizar))
 

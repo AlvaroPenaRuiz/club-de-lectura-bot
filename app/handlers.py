@@ -17,6 +17,7 @@ from app.db import (
     desautorizar_grupo,
     guardar_capitulos_contenido,
     obtener_capitulo_contenido,
+    obtener_capitulos_contenido,
     listar_capitulos_contenido,
 )
 from app.utils import (
@@ -80,6 +81,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/subircapitulos — Subir contenido en ZIP (admin)\n"
         "/listarcapitulos — Ver capítulos subidos\n"
         "/vercapitulo <n> — Previsualizar un capítulo\n"
+        "/resumen [rango] — Resumen IA de los capítulos\n"
         "\n🏷️ Metadatos (admin):\n"
         "/modificartitulo <texto>\n"
         "/modificarautor <texto>\n"
@@ -386,6 +388,65 @@ async def listarcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     texto = f"📄 Capítulos subidos ({len(nums)}):\n" + ", ".join(str(n) for n in nums)
     await update.message.reply_text(texto)
+
+
+async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from html import escape
+    from app.ai import generar_resumen
+
+    chat_id = update.effective_chat.id
+    club = ver_club(chat_id)
+
+    # Determinar capítulos: argumento manual o los activos
+    if context.args:
+        caps = parsear_capitulos(" ".join(context.args))
+        if caps is None:
+            await update.message.reply_text(
+                "Formato no válido. Usa: /resumen 1-5 o /resumen 1,2,3"
+            )
+            return
+    elif club and club['capitulos']:
+        caps = [int(c) for c in club['capitulos'].split(",")]
+    else:
+        await update.message.reply_text("No hay capítulos activos. Usa /resumen <rango> para indicarlos.")
+        return
+
+    # Obtener contenido
+    contenidos = obtener_capitulos_contenido(chat_id, caps)
+    faltantes = [c for c in caps if c not in contenidos]
+    if not contenidos:
+        nums = ", ".join(str(c) for c in faltantes)
+        await update.message.reply_text(
+            f"❌ No hay contenido subido para los capítulos: {nums}\n"
+            "Súbelos primero con /subircapitulos."
+        )
+        return
+
+    aviso_faltantes = ""
+    if faltantes:
+        nums = ", ".join(str(c) for c in faltantes)
+        aviso_faltantes = f"\n⚠️ Sin contenido para los capítulos: {nums}"
+
+    # Construir texto secuencial (solo los que tienen contenido)
+    caps_con_contenido = [c for c in caps if c in contenidos]
+    texto_caps = "\n\n".join(
+        f"--- Capítulo {num} ---\n{contenidos[num]}" for num in caps_con_contenido
+    )
+
+    aviso = await update.message.reply_text("⏳ Generando resumen...")
+
+    try:
+        resultado = await generar_resumen(texto_caps)
+    except Exception:
+        await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
+
+    caps_str = formato_capitulos(",".join(str(c) for c in caps_con_contenido))
+    header = f"📝 Resumen — {caps_str}{aviso_faltantes}"
+    html = f"{escape(header)}\n<blockquote expandable>{escape(resultado)}</blockquote>"
+
+    await aviso.delete()
+    await update.message.reply_text(html, parse_mode="HTML")
 
 
 # ─── Comandos de propietario ─────────────────────────────────

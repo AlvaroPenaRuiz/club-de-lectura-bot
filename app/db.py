@@ -349,6 +349,18 @@ def obtener_capitulo_contenido(chat_id: int, numero: int) -> str | None:
         return row["contenido"] if row else None
 
 
+def obtener_capitulos_contenido(chat_id: int, numeros: list[int]) -> dict[int, str]:
+    with closing(_conectar()) as conn:
+        placeholders = ",".join("?" for _ in numeros)
+        rows = conn.execute(f"""
+            SELECT numero, contenido
+            FROM capitulos_contenido
+            WHERE chat_id = ? AND numero IN ({placeholders})
+            ORDER BY numero
+        """, [chat_id] + numeros).fetchall()
+        return {r["numero"]: r["contenido"] for r in rows}
+
+
 def listar_capitulos_contenido(chat_id: int) -> list[int]:
     with closing(_conectar()) as conn:
         rows = conn.execute("""

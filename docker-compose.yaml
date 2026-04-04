@@ -13,6 +13,7 @@ services:
       WEBHOOK_URL: https://club-de-lectura-bot.alvaropenaruiz.com/telegram/webhook
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
       SQLITE_PATH: /data/app.db
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434}
       APP_PORT: 8080
       TZ: Europe/Madrid
 
