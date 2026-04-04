@@ -1,6 +1,6 @@
 import os
 import logging
-from telegram.ext import ApplicationBuilder, CommandHandler, Defaults, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Defaults, filters
 from telegram import Update
 
 from app.db import inicializar
@@ -19,6 +19,8 @@ from app.handlers import (
     leido,
     noleido,
     progreso,
+    subircapitulos,
+    listarcapitulos,
     modificartitulo,
     modificarautor,
     modificartematica,
@@ -74,6 +76,9 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("leido", leido))
     app.add_handler(CommandHandler("noleido", noleido))
     app.add_handler(CommandHandler("progreso", progreso))
+    app.add_handler(CommandHandler("subircapitulos", subircapitulos))
+    app.add_handler(MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/subircapitulos"), subircapitulos))
+    app.add_handler(CommandHandler("listarcapitulos", listarcapitulos))
     app.add_handler(CommandHandler("autorizar", autorizar))
     app.add_handler(CommandHandler("desautorizar", desautorizar))
 

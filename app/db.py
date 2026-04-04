@@ -60,6 +60,14 @@ def inicializar():
                 chat_id      INTEGER PRIMARY KEY,
                 autorizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS capitulos_contenido (
+                chat_id    INTEGER NOT NULL,
+                numero     INTEGER NOT NULL,
+                contenido  TEXT NOT NULL,
+                subido_en  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (chat_id, numero)
+            );
         """)
 
 
@@ -108,6 +116,7 @@ def cambiar_libro(chat_id: int, nombre_grupo: str | None, libro: str):
 
         conn.execute("DELETE FROM progreso WHERE chat_id = ?", (chat_id,))
         conn.execute("DELETE FROM lectores WHERE chat_id = ?", (chat_id,))
+        conn.execute("DELETE FROM capitulos_contenido WHERE chat_id = ?", (chat_id,))
 
 
 CAMPOS_LIBRO = {
@@ -314,3 +323,28 @@ def quienes_faltan(chat_id: int):
         """, (club["version_capitulos"], chat_id)).fetchall()
 
         return [dict(r) for r in rows]
+
+
+# ─── Capítulos contenido ─────────────────────────────────────
+
+
+def guardar_capitulos_contenido(chat_id: int, capitulos: list[tuple[int, str]]):
+    with closing(_conectar()) as conn, conn:
+        conn.executemany("""
+            INSERT INTO capitulos_contenido (chat_id, numero, contenido)
+            VALUES (?, ?, ?)
+            ON CONFLICT(chat_id, numero) DO UPDATE SET
+                contenido = excluded.contenido,
+                subido_en = CURRENT_TIMESTAMP
+        """, [(chat_id, num, texto) for num, texto in capitulos])
+
+
+def listar_capitulos_contenido(chat_id: int) -> list[int]:
+    with closing(_conectar()) as conn:
+        rows = conn.execute("""
+            SELECT numero
+            FROM capitulos_contenido
+            WHERE chat_id = ?
+            ORDER BY numero
+        """, (chat_id,)).fetchall()
+        return [r["numero"] for r in rows]

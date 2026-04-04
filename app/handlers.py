@@ -15,6 +15,8 @@ from app.db import (
     grupo_autorizado,
     autorizar_grupo,
     desautorizar_grupo,
+    guardar_capitulos_contenido,
+    listar_capitulos_contenido,
 )
 from app.utils import (
     configurar_whitelist,
@@ -74,6 +76,8 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/leido — Marcar los capítulos como leídos\n"
         "/noleido — Desmarcar si lo marcaste por error\n"
         "/progreso — Ver el progreso de los capítulos\n"
+        "/subircapitulos — Subir contenido en ZIP (admin)\n"
+        "/listarcapitulos — Ver capítulos subidos\n"
         "\n🏷️ Metadatos (admin):\n"
         "/modificartitulo <texto>\n"
         "/modificarautor <texto>\n"
@@ -272,6 +276,89 @@ modificarformatos = _handler_modificar("formatos")
 modificarpaginas = _handler_modificar("paginas")
 modificarsinopsis = _handler_modificar("sinopsis")
 modificarsaga = _handler_modificar("saga")
+
+
+# ─── Comandos de contenido de capítulos ──────────────────────
+
+
+async def subircapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden subir capítulos.")
+        return
+
+    doc = update.message.document
+    if not doc and update.message.reply_to_message:
+        doc = update.message.reply_to_message.document
+    if not doc:
+        await update.message.reply_text(
+            "Envía un archivo ZIP con el comando /subircapitulos como descripción del archivo, "
+            "o responde a un ZIP con /subircapitulos.\n"
+            "Los archivos dentro deben llamarse con el número del capítulo: 1.txt, 2.txt, etc."
+        )
+        return
+
+    if not doc.file_name or not doc.file_name.lower().endswith(".zip"):
+        await update.message.reply_text("El archivo debe ser un ZIP.")
+        return
+
+    import zipfile
+    import io
+    import re
+
+    archivo = await doc.get_file()
+    buf = io.BytesIO()
+    await archivo.download_to_memory(buf)
+    buf.seek(0)
+
+    try:
+        zf = zipfile.ZipFile(buf)
+    except zipfile.BadZipFile:
+        await update.message.reply_text("❌ El archivo no es un ZIP válido.")
+        return
+
+    capitulos = []
+    ignorados = []
+    patron = re.compile(r"^(\d+)\.txt$")
+
+    for nombre in zf.namelist():
+        # Ignorar directorios
+        if nombre.endswith("/"):
+            continue
+        # Usar solo el nombre del archivo (ignorar carpetas dentro del zip)
+        base = nombre.split("/")[-1]
+        m = patron.match(base)
+        if m:
+            numero = int(m.group(1))
+            contenido = zf.read(nombre).decode("utf-8", errors="replace")
+            capitulos.append((numero, contenido))
+        else:
+            ignorados.append(nombre)
+
+    zf.close()
+
+    if not capitulos:
+        await update.message.reply_text("❌ No se encontró ningún archivo con formato válido (1.txt, 2.txt, ...).")
+        return
+
+    guardar_capitulos_contenido(update.effective_chat.id, capitulos)
+    capitulos.sort(key=lambda x: x[0])
+    nums = ", ".join(str(c[0]) for c in capitulos)
+
+    texto = f"✅ Subidos {len(capitulos)} capítulo(s): {nums}"
+    if ignorados:
+        texto += f"\n\n⚠️ Archivos ignorados ({len(ignorados)}):\n" + "\n".join(f"• {n}" for n in ignorados)
+
+    await update.message.reply_text(texto)
+
+
+async def listarcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    nums = listar_capitulos_contenido(update.effective_chat.id)
+    if not nums:
+        await update.message.reply_text("No hay capítulos subidos.")
+        return
+
+    texto = f"📄 Capítulos subidos ({len(nums)}):\n" + ", ".join(str(n) for n in nums)
+    await update.message.reply_text(texto)
 
 
 # ─── Comandos de propietario ─────────────────────────────────
