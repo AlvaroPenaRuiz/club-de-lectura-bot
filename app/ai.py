@@ -19,7 +19,7 @@ Genera el resumen:"""
 async def generar_resumen(contenido_capitulos: str) -> str:
     prompt = PROMPT_RESUMEN.format(contenido_capitulos=contenido_capitulos)
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=900.0) as client:
         resp = await client.post(
             f"{OLLAMA_BASE_URL}/api/generate",
             json={
