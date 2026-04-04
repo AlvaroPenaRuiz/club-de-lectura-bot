@@ -339,6 +339,16 @@ def guardar_capitulos_contenido(chat_id: int, capitulos: list[tuple[int, str]]):
         """, [(chat_id, num, texto) for num, texto in capitulos])
 
 
+def obtener_capitulo_contenido(chat_id: int, numero: int) -> str | None:
+    with closing(_conectar()) as conn:
+        row = conn.execute("""
+            SELECT contenido
+            FROM capitulos_contenido
+            WHERE chat_id = ? AND numero = ?
+        """, (chat_id, numero)).fetchone()
+        return row["contenido"] if row else None
+
+
 def listar_capitulos_contenido(chat_id: int) -> list[int]:
     with closing(_conectar()) as conn:
         rows = conn.execute("""

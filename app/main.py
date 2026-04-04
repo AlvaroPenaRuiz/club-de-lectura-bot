@@ -20,6 +20,7 @@ from app.handlers import (
     noleido,
     progreso,
     subircapitulos,
+    vercapitulo,
     listarcapitulos,
     modificartitulo,
     modificarautor,
@@ -78,6 +79,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("progreso", progreso))
     app.add_handler(CommandHandler("subircapitulos", subircapitulos))
     app.add_handler(MessageHandler(filters.Document.ALL & filters.CaptionRegex(r"^/subircapitulos"), subircapitulos))
+    app.add_handler(CommandHandler("vercapitulo", vercapitulo))
     app.add_handler(CommandHandler("listarcapitulos", listarcapitulos))
     app.add_handler(CommandHandler("autorizar", autorizar))
     app.add_handler(CommandHandler("desautorizar", desautorizar))

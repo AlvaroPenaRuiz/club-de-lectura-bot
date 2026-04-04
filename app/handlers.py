@@ -16,6 +16,7 @@ from app.db import (
     autorizar_grupo,
     desautorizar_grupo,
     guardar_capitulos_contenido,
+    obtener_capitulo_contenido,
     listar_capitulos_contenido,
 )
 from app.utils import (
@@ -78,6 +79,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/progreso — Ver el progreso de los capítulos\n"
         "/subircapitulos — Subir contenido en ZIP (admin)\n"
         "/listarcapitulos — Ver capítulos subidos\n"
+        "/vercapitulo <n> — Previsualizar un capítulo\n"
         "\n🏷️ Metadatos (admin):\n"
         "/modificartitulo <texto>\n"
         "/modificarautor <texto>\n"
@@ -348,6 +350,31 @@ async def subircapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if ignorados:
         texto += f"\n\n⚠️ Archivos ignorados ({len(ignorados)}):\n" + "\n".join(f"• {n}" for n in ignorados)
 
+    await update.message.reply_text(texto)
+
+
+async def vercapitulo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Uso: /vercapitulo <número>")
+        return
+
+    try:
+        numero = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("El número de capítulo debe ser un número entero.")
+        return
+
+    contenido = obtener_capitulo_contenido(update.effective_chat.id, numero)
+    if not contenido:
+        await update.message.reply_text(f"No hay contenido subido para el capítulo {numero}.")
+        return
+
+    lineas = contenido.splitlines()[:10]
+    preview = "\n".join(lineas)
+    total = len(contenido.splitlines())
+    texto = f"📖 Capítulo {numero} (primeras líneas, {total} total):\n\n{preview}"
+    if total > 10:
+        texto += "\n\n[...]"
     await update.message.reply_text(texto)
 
 
