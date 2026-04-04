@@ -22,6 +22,7 @@ services:
 
     networks:
       - proxy
+      - ollama
 
     labels:
       - "traefik.enable=true"
@@ -38,3 +39,6 @@ networks:
   proxy:
     external: true
     name: proxy
+  ollama:
+    external: true
+    name: ollama
