@@ -1,8 +1,9 @@
 import os
 import httpx
 
-MODELO = "gemma3:4b"
-OLLAMA_BASE_URL = os.getenv("LLM_BASE_URL", "http://ollama:11434")
+MODELO = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 
 PROMPT_RESUMEN = """\
 Quiero que me resumas unos capítulos de un libro en español de España, con un formato estructurado y muy útil para recordar lo leído y comentarlo en mi grupo de lectura.
@@ -59,17 +60,19 @@ Genera el resumen:"""
 async def generar_resumen(contenido_capitulos: str) -> str:
     prompt = PROMPT_RESUMEN.format(contenido_capitulos=contenido_capitulos)
 
-    async with httpx.AsyncClient(timeout=1800.0) as client:
+    async with httpx.AsyncClient(timeout=300.0) as client:
         resp = await client.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
+            f"{LLM_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {LLM_API_KEY}",
+                "Content-Type": "application/json",
+            },
             json={
                 "model": MODELO,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "num_ctx": 32768,
-                },
+                "messages": [
+                    {"role": "user", "content": prompt},
+                ],
             },
         )
         resp.raise_for_status()
-        return resp.json()["response"]
+        return resp.json()["choices"][0]["message"]["content"]
