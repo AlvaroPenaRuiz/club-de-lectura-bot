@@ -82,6 +82,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/listarcapitulos — Ver capítulos subidos\n"
         "/vercapitulo <n> — Previsualizar un capítulo\n"
         "/resumen [rango] — Resumen IA de los capítulos\n"
+        "/pregunta <texto> — Pregunta a la IA sobre el libro\n"
         "\n🏷️ Metadatos (admin):\n"
         "/modificartitulo <texto>\n"
         "/modificarautor <texto>\n"
@@ -451,6 +452,64 @@ async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     resultado_escaped = escape(resultado)
     trozos = [resultado_escaped[i:i + MAX] for i in range(0, len(resultado_escaped), MAX)]
 
+    for i, trozo in enumerate(trozos):
+        if i == 0:
+            html = f"{escape(header)}\n<blockquote expandable>{trozo}</blockquote>"
+        else:
+            html = f"<blockquote expandable>{trozo}</blockquote>"
+        await update.message.reply_text(html, parse_mode="HTML")
+
+
+async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from html import escape
+    from app.ai import responder_pregunta
+
+    chat_id = update.effective_chat.id
+    texto_pregunta = " ".join(context.args).strip() if context.args else ""
+    if not texto_pregunta:
+        await update.message.reply_text("Uso: /pregunta ¿Qué pasó con tal personaje?")
+        return
+
+    club = ver_club(chat_id)
+    if not club or not club['capitulos']:
+        await update.message.reply_text("No hay capítulos activos configurados.")
+        return
+
+    # Capítulos desde el 1 hasta el anterior al bloque activo
+    caps_activos = [int(c) for c in club['capitulos'].split(",")]
+    primer_activo = min(caps_activos)
+    if primer_activo <= 1:
+        await update.message.reply_text("No hay capítulos anteriores al bloque activo para usar como contexto.")
+        return
+
+    caps_contexto = list(range(1, primer_activo))
+    contenidos = obtener_capitulos_contenido(chat_id, caps_contexto)
+    if not contenidos:
+        await update.message.reply_text(
+            f"No hay contenido subido para los capítulos 1-{primer_activo - 1}.\n"
+            "Súbelos primero con /subircapitulos."
+        )
+        return
+
+    caps_disponibles = sorted(contenidos.keys())
+    texto_caps = "\n\n".join(
+        f"--- Capítulo {num} ---\n{contenidos[num]}" for num in caps_disponibles
+    )
+
+    aviso = await update.message.reply_text("⏳ Pensando...")
+
+    try:
+        resultado = await responder_pregunta(texto_caps, texto_pregunta)
+    except Exception:
+        await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
+
+    header = f"❓ {texto_pregunta}"
+    MAX = 4000
+    resultado_escaped = escape(resultado)
+    trozos = [resultado_escaped[i:i + MAX] for i in range(0, len(resultado_escaped), MAX)]
+
+    await aviso.delete()
     for i, trozo in enumerate(trozos):
         if i == 0:
             html = f"{escape(header)}\n<blockquote expandable>{trozo}</blockquote>"

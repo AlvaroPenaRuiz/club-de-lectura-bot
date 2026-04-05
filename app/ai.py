@@ -20,7 +20,6 @@ Hazlo SIEMPRE con estos apartados y en este orden:
    • Resume los acontecimientos importantes de forma clara y ordenada.
    • No quiero un resumen escena por escena sin filtro, sino los eventos que de verdad mueven la historia, revelan algo importante o cambian la situación.
    • Escríbelo también en bullet points.
-   • Añade por qué importa cada evento, aunque sea en una frase corta.
 
 3. Lo más importante que deja esta parte
    • Haz una sección breve en bullet points con las ideas más importantes que dejan estos capítulos.
@@ -30,7 +29,7 @@ Hazlo SIEMPRE con estos apartados y en este orden:
    • Termina con una pequeña conclusión/opinión final en tono natural, cercana y algo desenfadada.
    • Quiero que parezca una valoración útil para comentar con otra gente, no una crítica académica.
    • Puede incluir impresiones del tipo: “aquí el libro pega un salto”, “este personaje queda retratado del todo”, “aquí cambia de nivel”, etc.
-   • Que tenga personalidad, pero sin pasarse de chiste.
+   • Que tenga personalidad, pero sin pasarse de chiste, puede ser malhablado.
 
 Instrucciones de estilo:
 • Escribe en español de España.
@@ -56,10 +55,21 @@ Ahora te paso los capítulos:
 
 Genera el resumen:"""
 
+PROMPT_PREGUNTA = """\
+Eres un asistente de un club de lectura. A continuación se te proporcionan los textos de varios capítulos de un libro como contexto.
 
-async def generar_resumen(contenido_capitulos: str) -> str:
-    prompt = PROMPT_RESUMEN.format(contenido_capitulos=contenido_capitulos)
+IMPORTANTE: Responde SOLO con información que aparezca en los capítulos proporcionados. No inventes ni añadas nada que no esté en el texto. Si la respuesta no se puede encontrar en los capítulos, dilo claramente.
 
+Capítulos disponibles:
+{contenido_capitulos}
+
+Pregunta del lector:
+{pregunta}
+
+Responde en español de España, con tono cercano y claro:"""
+
+
+async def _llamar_llm(prompt: str) -> str:
     async with httpx.AsyncClient(timeout=300.0) as client:
         resp = await client.post(
             f"{LLM_BASE_URL}/chat/completions",
@@ -76,3 +86,13 @@ async def generar_resumen(contenido_capitulos: str) -> str:
         )
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"]
+
+
+async def generar_resumen(contenido_capitulos: str) -> str:
+    prompt = PROMPT_RESUMEN.format(contenido_capitulos=contenido_capitulos)
+    return await _llamar_llm(prompt)
+
+
+async def responder_pregunta(contenido_capitulos: str, pregunta: str) -> str:
+    prompt = PROMPT_PREGUNTA.format(contenido_capitulos=contenido_capitulos, pregunta=pregunta)
+    return await _llamar_llm(prompt)

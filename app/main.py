@@ -23,6 +23,7 @@ from app.handlers import (
     vercapitulo,
     listarcapitulos,
     resumen,
+    pregunta,
     modificartitulo,
     modificarautor,
     modificartematica,
@@ -83,6 +84,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("vercapitulo", vercapitulo))
     app.add_handler(CommandHandler("listarcapitulos", listarcapitulos))
     app.add_handler(CommandHandler("resumen", resumen))
+    app.add_handler(CommandHandler("pregunta", pregunta))
     app.add_handler(CommandHandler("autorizar", autorizar))
     app.add_handler(CommandHandler("desautorizar", desautorizar))
 
