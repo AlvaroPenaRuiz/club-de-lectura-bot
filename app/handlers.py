@@ -443,10 +443,20 @@ async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     caps_str = formato_capitulos(",".join(str(c) for c in caps_con_contenido))
     header = f"📝 Resumen — {caps_str}{aviso_faltantes}"
-    html = f"{escape(header)}\n<blockquote expandable>{escape(resultado)}</blockquote>"
 
     await aviso.delete()
-    await update.message.reply_text(html, parse_mode="HTML")
+
+    # Telegram limita a 4096 chars. Enviamos header + blockquote, partiendo si es necesario.
+    MAX = 4000  # margen para etiquetas HTML
+    resultado_escaped = escape(resultado)
+    trozos = [resultado_escaped[i:i + MAX] for i in range(0, len(resultado_escaped), MAX)]
+
+    for i, trozo in enumerate(trozos):
+        if i == 0:
+            html = f"{escape(header)}\n<blockquote expandable>{trozo}</blockquote>"
+        else:
+            html = f"<blockquote expandable>{trozo}</blockquote>"
+        await update.message.reply_text(html, parse_mode="HTML")
 
 
 # ─── Comandos de propietario ─────────────────────────────────
