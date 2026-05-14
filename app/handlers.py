@@ -28,6 +28,9 @@ from app.db import (
     desactivar_modo_presion,
     grupos_con_modo_presion,
     registrar_envio_presion,
+    activar_auto_resumen,
+    desactivar_auto_resumen,
+    auto_resumen_activo,
 )
 from app.utils import (
     configurar_whitelist,
@@ -91,6 +94,8 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/listarcapitulos — Ver capítulos subidos\n"
         "/vercapitulo <n> — Previsualizar un capítulo\n"
         "/resumen [rango] — Resumen IA de los capítulos\n"
+        "/activarautoresumen — Resumen automático al terminar todos (admin)\n"
+        "/desactivarautoresumen — Desactivar resumen automático (admin)\n"
         "/pregunta <texto> — Pregunta a la IA sobre el libro\n"
         "\n🏷️ Metadatos (admin):\n"
         "/modificartitulo <texto>\n"
@@ -223,11 +228,24 @@ async def apuntados(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def leido(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     try:
-        marcar_leido(update.effective_chat.id, update.effective_user.id)
+        marcar_leido(chat_id, update.effective_user.id)
         await update.message.reply_text("✅ Marcado como leído para los capítulos actuales.")
     except ValueError as e:
         await update.message.reply_text(str(e))
+        return
+
+    if auto_resumen_activo(chat_id) and not quienes_faltan(chat_id):
+        club = ver_club(chat_id)
+        if club and club['capitulos']:
+            caps = [int(c) for c in club['capitulos'].split(",")]
+            await update.message.reply_text("🎉 ¡Todos han leído los capítulos! Generando resumen automático...")
+
+            async def _send(text, **kwargs):
+                return await context.bot.send_message(chat_id, text, **kwargs)
+
+            await _ejecutar_resumen(chat_id, caps, context, _send)
 
 
 async def noleido(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -298,6 +316,72 @@ modificarsaga = _handler_modificar("saga")
 
 
 # ─── Comandos de contenido de capítulos ──────────────────────
+
+
+async def _ejecutar_resumen(
+    chat_id: int,
+    caps: list[int],
+    context: ContextTypes.DEFAULT_TYPE,
+    send_fn,  # async (text, **kwargs) -> Message
+):
+    """Núcleo reutilizable: obtén contenido, llama a la IA y envía el resumen."""
+    from html import escape
+    from app.ai import generar_resumen
+
+    contenidos = obtener_capitulos_contenido(chat_id, caps)
+    faltantes = [c for c in caps if c not in contenidos]
+    if not contenidos:
+        nums = ", ".join(str(c) for c in faltantes)
+        await send_fn(
+            f"❌ No hay contenido subido para los capítulos: {nums}\n"
+            "Súbelos primero con /subircapitulos."
+        )
+        return
+
+    aviso_faltantes = ""
+    if faltantes:
+        nums = ", ".join(str(c) for c in faltantes)
+        aviso_faltantes = f"\n⚠️ Sin contenido para los capítulos: {nums}"
+
+    caps_con_contenido = [c for c in caps if c in contenidos]
+    texto_caps = "\n\n".join(
+        f"--- Capítulo {num} ---\n{contenidos[num]}" for num in caps_con_contenido
+    )
+
+    aviso = await send_fn("⏳ Generando resumen...")
+
+    try:
+        resultado = await generar_resumen(texto_caps)
+    except ValueError as e:
+        msg = str(e)
+        if "content_filter" in msg:
+            logger.warning("Resumen bloqueado por filtro de contenido")
+            await aviso.edit_text("⚠️ La IA ha bloqueado la respuesta por filtro de contenido. Prueba con menos capítulos o un rango diferente.")
+        elif "rate_limit" in msg:
+            logger.warning("Resumen bloqueado por rate limit")
+            await aviso.edit_text("⚠️ Límite de peticiones alcanzado. Espera un poco y vuelve a intentarlo.")
+        else:
+            logger.error("Error inesperado en generar_resumen: %s", msg)
+            await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
+    except Exception:
+        logger.exception("Error al llamar a generar_resumen")
+        await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
+
+    caps_str = formato_capitulos(",".join(str(c) for c in caps_con_contenido))
+    header = f"📝 Resumen — {caps_str}{aviso_faltantes}"
+
+    await aviso.delete()
+    await send_fn(header)
+
+    bloques = [b.strip() for b in resultado.split("@@@@@@@@") if b.strip()]
+    if not bloques:
+        bloques = [resultado.strip()]
+
+    for bloque in bloques:
+        html = f"<blockquote expandable>{escape(bloque)}</blockquote>"
+        await send_fn(html, parse_mode="HTML")
 
 
 async def subircapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -406,13 +490,9 @@ async def listarcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    from html import escape
-    from app.ai import generar_resumen
-
     chat_id = update.effective_chat.id
     club = ver_club(chat_id)
 
-    # Determinar capítulos: argumento manual o los activos
     if context.args:
         caps = parsear_capitulos(" ".join(context.args))
         if caps is None:
@@ -426,64 +506,10 @@ async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No hay capítulos activos. Usa /resumen <rango> para indicarlos.")
         return
 
-    # Obtener contenido
-    contenidos = obtener_capitulos_contenido(chat_id, caps)
-    faltantes = [c for c in caps if c not in contenidos]
-    if not contenidos:
-        nums = ", ".join(str(c) for c in faltantes)
-        await update.message.reply_text(
-            f"❌ No hay contenido subido para los capítulos: {nums}\n"
-            "Súbelos primero con /subircapitulos."
-        )
-        return
+    async def send_fn(text, **kwargs):
+        return await update.message.reply_text(text, **kwargs)
 
-    aviso_faltantes = ""
-    if faltantes:
-        nums = ", ".join(str(c) for c in faltantes)
-        aviso_faltantes = f"\n⚠️ Sin contenido para los capítulos: {nums}"
-
-    # Construir texto secuencial (solo los que tienen contenido)
-    caps_con_contenido = [c for c in caps if c in contenidos]
-    texto_caps = "\n\n".join(
-        f"--- Capítulo {num} ---\n{contenidos[num]}" for num in caps_con_contenido
-    )
-
-    aviso = await update.message.reply_text("⏳ Generando resumen...")
-
-    try:
-        resultado = await generar_resumen(texto_caps)
-    except ValueError as e:
-        msg = str(e)
-        if "content_filter" in msg:
-            logger.warning("Resumen bloqueado por filtro de contenido")
-            await aviso.edit_text("⚠️ La IA ha bloqueado la respuesta por filtro de contenido. Prueba con menos capítulos o un rango diferente.")
-        elif "rate_limit" in msg:
-            logger.warning("Resumen bloqueado por rate limit")
-            await aviso.edit_text("⚠️ Límite de peticiones alcanzado. Espera un poco y vuelve a intentarlo.")
-        else:
-            logger.error("Error inesperado en generar_resumen: %s", msg)
-            await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
-        return
-    except Exception:
-        logger.exception("Error al llamar a generar_resumen")
-        await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
-        return
-
-    caps_str = formato_capitulos(",".join(str(c) for c in caps_con_contenido))
-    header = f"📝 Resumen — {caps_str}{aviso_faltantes}"
-
-    await aviso.delete()
-
-    await update.message.reply_text(header)
-
-    # El prompt de resumen separa bloques con @@@@@@@@.
-    bloques = [b.strip() for b in resultado.split("@@@@@@@@") if b.strip()]
-    if not bloques:
-        bloques = [resultado.strip()]
-
-    for bloque in bloques:
-        html = f"<blockquote expandable>{escape(bloque)}</blockquote>"
-        await update.message.reply_text(html, parse_mode="HTML")
+    await _ejecutar_resumen(chat_id, caps, context, send_fn)
 
 
 async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -589,6 +615,27 @@ async def desactivarmodopresion(update: Update, context: ContextTypes.DEFAULT_TY
 
     desactivar_modo_presion(update.effective_chat.id)
     await update.message.reply_text("🙌 Modo presión desactivado.")
+
+
+async def activarautoresumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden activar el auto-resumen.")
+        return
+
+    activar_auto_resumen(update.effective_chat.id)
+    await update.message.reply_text(
+        "🤖 Auto-resumen activado. Cuando el último lector marque /leido "
+        "se generará automáticamente el resumen de los capítulos."
+    )
+
+
+async def desactivarautoresumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden desactivar el auto-resumen.")
+        return
+
+    desactivar_auto_resumen(update.effective_chat.id)
+    await update.message.reply_text("🔕 Auto-resumen desactivado.")
 
 
 async def check_modo_presion(context: ContextTypes.DEFAULT_TYPE):

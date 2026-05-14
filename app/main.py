@@ -37,6 +37,8 @@ from app.handlers import (
     activarmodopresion,
     desactivarmodopresion,
     check_modo_presion,
+    activarautoresumen,
+    desactivarautoresumen,
 )
 
 TOKEN = os.getenv('TOKEN')
@@ -92,6 +94,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("desautorizar", desautorizar))
     app.add_handler(CommandHandler("activarpresion", activarmodopresion))
     app.add_handler(CommandHandler("desactivarpresion", desactivarmodopresion))
+    app.add_handler(CommandHandler("activarautoresumen", activarautoresumen))
+    app.add_handler(CommandHandler("desactivarautoresumen", desactivarautoresumen))
 
     # Job diario: modo presión
     app.job_queue.run_repeating(check_modo_presion, interval=86400, first=60)

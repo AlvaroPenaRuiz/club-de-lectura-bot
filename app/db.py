@@ -32,7 +32,11 @@ def inicializar():
                 saga          TEXT,
                 capitulos     TEXT,
                 version_capitulos INTEGER NOT NULL DEFAULT 1,
-                actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                modo_presion  INTEGER NOT NULL DEFAULT 0,
+                capitulos_cambiados_en TEXT,
+                presion_enviado_en TEXT,
+                auto_resumen  INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS lectores (
@@ -70,16 +74,11 @@ def inicializar():
             );
         """)
 
-        # Migraciones: columnas añadidas tras la versión inicial
-        for _sql in [
-            "ALTER TABLE clubes ADD COLUMN modo_presion INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE clubes ADD COLUMN capitulos_cambiados_en TEXT",
-            "ALTER TABLE clubes ADD COLUMN presion_enviado_en TEXT",
-        ]:
-            try:
-                conn.execute(_sql)
-            except sqlite3.OperationalError:
-                pass  # La columna ya existe
+        # Migración temporal: eliminar tras despliegue
+        try:
+            conn.execute("ALTER TABLE clubes ADD COLUMN auto_resumen INTEGER NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # La columna ya existe
 
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
@@ -419,3 +418,28 @@ def registrar_envio_presion(chat_id: int):
         conn.execute("""
             UPDATE clubes SET presion_enviado_en = CURRENT_TIMESTAMP WHERE chat_id = ?
         """, (chat_id,))
+
+
+# ─── Auto-resumen ──────────────────────────────────────────
+
+
+def activar_auto_resumen(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes SET auto_resumen = 1 WHERE chat_id = ?
+        """, (chat_id,))
+
+
+def desactivar_auto_resumen(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes SET auto_resumen = 0 WHERE chat_id = ?
+        """, (chat_id,))
+
+
+def auto_resumen_activo(chat_id: int) -> bool:
+    with closing(_conectar()) as conn:
+        row = conn.execute("""
+            SELECT auto_resumen FROM clubes WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+        return bool(row and row["auto_resumen"])
