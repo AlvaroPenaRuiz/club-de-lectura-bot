@@ -447,16 +447,15 @@ async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await aviso.delete()
 
-    # Telegram limita a 4096 chars. Enviamos header + blockquote, partiendo si es necesario.
-    MAX = 4000  # margen para etiquetas HTML
-    resultado_escaped = escape(resultado)
-    trozos = [resultado_escaped[i:i + MAX] for i in range(0, len(resultado_escaped), MAX)]
+    await update.message.reply_text(header)
 
-    for i, trozo in enumerate(trozos):
-        if i == 0:
-            html = f"{escape(header)}\n<blockquote expandable>{trozo}</blockquote>"
-        else:
-            html = f"<blockquote expandable>{trozo}</blockquote>"
+    # El prompt de resumen separa bloques con @@@@@@@@.
+    bloques = [b.strip() for b in resultado.split("@@@@@@@@") if b.strip()]
+    if not bloques:
+        bloques = [resultado.strip()]
+
+    for bloque in bloques:
+        html = f"<blockquote expandable>{escape(bloque)}</blockquote>"
         await update.message.reply_text(html, parse_mode="HTML")
 
 
