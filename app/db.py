@@ -74,12 +74,6 @@ def inicializar():
             );
         """)
 
-        # Migración temporal: eliminar tras despliegue
-        try:
-            conn.execute("ALTER TABLE clubes ADD COLUMN auto_resumen INTEGER NOT NULL DEFAULT 0")
-        except sqlite3.OperationalError:
-            pass  # La columna ya existe
-
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
     with closing(_conectar()) as conn, conn:
