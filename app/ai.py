@@ -12,41 +12,34 @@ Objetivo del resumen:
 Ayudar a un grupo de lectura a recordar lo leído antes de comentarlo. Debe ser claro, riguroso y fácil de repasar. No debe ser largo por lucirse ni repetir la misma información en varios apartados.
 
 Formato de salida estricto:
-• Responde únicamente con los 4 bloques pedidos.
+• Responde únicamente con los 2 bloques pedidos.
 • No escribas introducciones del tipo “Aquí tienes el resumen”, “Claro”, “Resumen de los capítulos” ni frases similares.
-• No añadas ninguna frase, nota o cierre después del último bloque.
-• Entre cada bloque debe haber una línea separadora que contenga exactamente esto: @@@@@@@@
+• No añadas ninguna frase, nota, opinión o cierre después del último bloque.
+• Entre los dos bloques debe haber una línea separadora que contenga exactamente esto: @@@@@@@@
 • Cada bloque debe empezar directamente con su título correspondiente.
+• Ningún bloque puede llegar jamás a 3800 caracteres. No es una orientación aproximada, es un límite estricto.
 
 Usa SIEMPRE estos apartados y en este orden:
 
 1. Personajes clave
-   • Incluye solo los personajes realmente relevantes en estos capítulos.
-   • No hagas una ficha de todos los personajes que aparecen.
-   • Añade información sobre un personaje solo si en estos capítulos hace algo importante, cambia, revela algo, toma una decisión, entra en conflicto, modifica una relación o queda mejor definido.
-   • Si un personaje simplemente está presente pero no evoluciona ni aporta algo nuevo, omítelo.
-   • Máximo orientativo: 3-8 bullets.
-   • Cada bullet debe ser directo, sin repetir eventos que ya vayan a aparecer en “Eventos clave”, salvo que sea necesario para explicar una evolución del personaje.
+   • Incluye los personajes relevantes de estos capítulos.
+   • Puedes mencionar a varios personajes, incluso si no todos evolucionan, pero debes ser muy conciso con cada uno.
+   • Cada bullet debe explicar en una sola idea qué papel cumple el personaje en estos capítulos, qué hace o qué cambia.
+   • Da prioridad a evolución, decisiones, conflictos, revelaciones, relaciones o cambios de posición.
+   • Si un personaje solo aparece de forma menor, menciónalo únicamente si ayuda a recordar la trama.
+   • No hagas fichas largas de personaje.
+   • No repitas eventos que ya vayan a aparecer en “Eventos clave”, salvo que sea imprescindible para entender el papel del personaje.
+   • Máximo orientativo: 5-10 bullets.
+   • Cada bullet debe ser corto, directo y de una sola línea siempre que sea posible.
 
 2. Eventos clave
    • Resume los acontecimientos importantes en orden narrativo.
    • No hagas un resumen escena por escena.
    • Agrupa acciones relacionadas en un solo bullet cuando formen parte del mismo avance narrativo.
    • Prioriza lo que mueve la historia, cambia la situación, revela información importante, abre un conflicto o modifica la relación entre personajes.
-   • Máximo orientativo: 6-12 bullets.
-   • Cada bullet debe ser claro y concreto.
-
-3. Lo más importante que deja esta parte
-   • Sección breve con las consecuencias, revelaciones o ideas que conviene tener frescas para comentar.
-   • Incluye cambios de tablero, misterios, conflictos abiertos, dinámicas nuevas, detalles de mundo/magia/política/lore relevantes o información que recontextualiza lo leído.
-   • Máximo orientativo: 3-6 bullets.
-   • Evita repetir literalmente lo ya dicho en “Eventos clave”: aquí importa el significado o la consecuencia, no volver a contar la escena.
-
-4. Mi conclusióncita
-   • Termina con una valoración breve, natural y cercana.
-   • Debe sonar como alguien del grupo comentando qué deja esta parte, no como una crítica académica.
-   • Puede tener algo de personalidad y un punto desenfadado, incluso ligeramente malhablado si encaja, pero sin alargar ni meter chistes gratuitos.
-   • Máximo: 1 párrafo corto de 3-5 líneas.
+   • Incluye solo detalles de mundo, magia, política o lore si son relevantes para entender lo que cambia en estos capítulos.
+   • Máximo orientativo: 10-16 bullets.
+   • Cada bullet debe ser claro, concreto y sin adornos.
 
 Instrucciones de estilo:
 • Español de España.
@@ -57,7 +50,7 @@ Instrucciones de estilo:
 • Evita frases de relleno, adornos innecesarios y comentarios obvios.
 • No repitas la misma idea en varios apartados.
 • No sobreexpliques relaciones o motivaciones si ya quedan claras.
-• No metas personalidad extra en mitad del resumen: guárdala para la conclusión final.
+• No metas personalidad extra, bromas gratuitas ni valoraciones finales.
 • No conviertas el resumen en una narración literaria; debe ser una herramienta de repaso.
 
 Rigor y control de alucinaciones:
@@ -66,13 +59,13 @@ Rigor y control de alucinaciones:
 • No uses información de capítulos posteriores ni conocimiento externo del libro.
 • Si algo no está claro en el texto, dilo con cautela o no lo incluyas.
 • No presentes como seguro algo que solo sea una interpretación.
-• Si un detalle parece importante pero todavía no se explica, indícalo como misterio o punto pendiente.
+• Si un detalle parece importante pero todavía no se explica, indícalo como punto pendiente solo si resulta necesario para recordar la lectura.
 • Antes de responder, revisa mentalmente que cada afirmación esté apoyada por el texto.
 
 Longitud:
 • El resumen debe ser suficientemente completo para recordar lo leído, pero no pesado.
 • Para un bloque normal de capítulos, intenta mantenerlo compacto.
-• Ningún bloque puede llegar jamás a 3800 caracteres. No es una orientación aproximada, es un límite estricto.
+• Ningún bloque puede llegar jamás a 3800 caracteres.
 • Si un bloque se acerca demasiado a ese límite, reduce detalle, agrupa ideas y elimina redundancias antes de responder.
 • Si hay muchos eventos relevantes, prioriza claridad y selección antes que exhaustividad.
 
