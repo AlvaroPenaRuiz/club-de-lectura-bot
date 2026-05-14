@@ -159,8 +159,12 @@ async def _llamar_llm(prompt: str) -> str:
         )
         resp.raise_for_status()
         data = resp.json()
-        logger.info("Respuesta LLM: %s", data)
-        content = data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        finish_reason = choice.get("finish_reason", "")
+        if "content_filter" in finish_reason:
+            logger.warning("Respuesta bloqueada por filtro de contenido: %s", finish_reason)
+            raise ValueError(f"content_filter")
+        content = choice["message"]["content"]
         if content is None:
             logger.error("El LLM devolvió content=null. Respuesta completa: %s", data)
             raise ValueError("El LLM devolvió una respuesta vacía (content=null)")

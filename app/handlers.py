@@ -442,6 +442,12 @@ async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         resultado = await generar_resumen(texto_caps)
+    except ValueError as e:
+        if "content_filter" in str(e):
+            await aviso.edit_text("⚠️ La IA ha bloqueado la respuesta por filtro de contenido. Prueba con menos capítulos o un rango diferente.")
+        else:
+            await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
     except Exception:
         logger.exception("Error al llamar a generar_resumen")
         await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
@@ -504,6 +510,12 @@ async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         resultado = await responder_pregunta(texto_caps, texto_pregunta)
+    except ValueError as e:
+        if "content_filter" in str(e):
+            await aviso.edit_text("⚠️ La IA ha bloqueado la respuesta por filtro de contenido.")
+        else:
+            await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
     except Exception:
         logger.exception("Error al llamar a responder_pregunta")
         await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
