@@ -159,7 +159,7 @@ async def _llamar_llm(prompt: str) -> str:
         )
         resp.raise_for_status()
         data = resp.json()
-        logger.debug("Respuesta LLM: %s", data)
+        logger.info("Respuesta LLM: %s", data)
         content = data["choices"][0]["message"]["content"]
         if content is None:
             logger.error("El LLM devolvió content=null. Respuesta completa: %s", data)
