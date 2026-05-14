@@ -163,7 +163,7 @@ async def _llamar_llm(prompt: str) -> str:
         finish_reason = choice.get("finish_reason", "")
         if "content_filter" in finish_reason:
             logger.warning("Respuesta bloqueada por filtro de contenido: %s", finish_reason)
-            raise ValueError(f"content_filter")
+            raise ValueError("content_filter")
         content = choice["message"]["content"]
         if content is None:
             logger.error("El LLM devolvió content=null. Respuesta completa: %s", data)

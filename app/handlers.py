@@ -443,9 +443,15 @@ async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         resultado = await generar_resumen(texto_caps)
     except ValueError as e:
-        if "content_filter" in str(e):
+        msg = str(e)
+        if "content_filter" in msg:
+            logger.warning("Resumen bloqueado por filtro de contenido")
             await aviso.edit_text("⚠️ La IA ha bloqueado la respuesta por filtro de contenido. Prueba con menos capítulos o un rango diferente.")
+        elif "rate_limit" in msg:
+            logger.warning("Resumen bloqueado por rate limit")
+            await aviso.edit_text("⚠️ Límite de peticiones alcanzado. Espera un poco y vuelve a intentarlo.")
         else:
+            logger.error("Error inesperado en generar_resumen: %s", msg)
             await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
         return
     except Exception:
@@ -511,9 +517,15 @@ async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         resultado = await responder_pregunta(texto_caps, texto_pregunta)
     except ValueError as e:
-        if "content_filter" in str(e):
+        msg = str(e)
+        if "content_filter" in msg:
+            logger.warning("Pregunta bloqueada por filtro de contenido")
             await aviso.edit_text("⚠️ La IA ha bloqueado la respuesta por filtro de contenido.")
+        elif "rate_limit" in msg:
+            logger.warning("Pregunta bloqueada por rate limit")
+            await aviso.edit_text("⚠️ Límite de peticiones alcanzado. Espera un poco y vuelve a intentarlo.")
         else:
+            logger.error("Error inesperado en responder_pregunta: %s", msg)
             await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
         return
     except Exception:
