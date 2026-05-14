@@ -1,5 +1,8 @@
+import logging
 import os
 import httpx
+
+logger = logging.getLogger(__name__)
 
 MODELO = os.getenv("LLM_MODEL", "gemini-2.5-flash")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
@@ -155,7 +158,13 @@ async def _llamar_llm(prompt: str) -> str:
             },
         )
         resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        data = resp.json()
+        logger.debug("Respuesta LLM: %s", data)
+        content = data["choices"][0]["message"]["content"]
+        if content is None:
+            logger.error("El LLM devolvió content=null. Respuesta completa: %s", data)
+            raise ValueError("El LLM devolvió una respuesta vacía (content=null)")
+        return content
 
 
 async def generar_resumen(contenido_capitulos: str) -> str:
