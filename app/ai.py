@@ -29,7 +29,7 @@ Usa SIEMPRE estos apartados y en este orden:
    • Puedes mencionar a varios personajes, incluso si no todos evolucionan, pero debes ser muy conciso con cada uno.
    • Cada bullet debe explicar en una sola idea qué papel cumple el personaje en estos capítulos, qué hace o qué cambia.
    • Da prioridad a evolución, decisiones, conflictos, revelaciones, relaciones o cambios de posición.
-   • Si un personaje solo aparece de forma menor, menciónalo únicamente si ayuda a recordar la trama.
+   • Si un personaje solo aparece de forma secundaria, menciónalo únicamente si ayuda a recordar la trama.
    • No hagas fichas largas de personaje.
    • No repitas eventos que ya vayan a aparecer en “Eventos clave”, salvo que sea imprescindible para entender el papel del personaje.
    • Máximo orientativo: 5-10 bullets.
