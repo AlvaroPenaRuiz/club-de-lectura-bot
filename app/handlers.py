@@ -1,6 +1,10 @@
+import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes, ApplicationHandlerStop
 from telegram.constants import ChatMemberStatus
+
+logger = logging.getLogger(__name__)
 
 from app.db import (
     ver_club,
@@ -439,6 +443,7 @@ async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         resultado = await generar_resumen(texto_caps)
     except Exception:
+        logger.exception("Error al llamar a generar_resumen")
         await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
         return
 
@@ -500,6 +505,7 @@ async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         resultado = await responder_pregunta(texto_caps, texto_pregunta)
     except Exception:
+        logger.exception("Error al llamar a responder_pregunta")
         await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
         return
 
