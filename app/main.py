@@ -34,6 +34,9 @@ from app.handlers import (
     modificarsaga,
     autorizar,
     desautorizar,
+    activarmodopresion,
+    desactivarmodopresion,
+    check_modo_presion,
 )
 
 TOKEN = os.getenv('TOKEN')
@@ -87,6 +90,11 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("pregunta", pregunta))
     app.add_handler(CommandHandler("autorizar", autorizar))
     app.add_handler(CommandHandler("desautorizar", desautorizar))
+    app.add_handler(CommandHandler("activarpresion", activarmodopresion))
+    app.add_handler(CommandHandler("desactivarpresion", desactivarmodopresion))
+
+    # Job diario: modo presión
+    app.job_queue.run_repeating(check_modo_presion, interval=86400, first=60)
 
     if WEBHOOK_URL:
         app.run_webhook(

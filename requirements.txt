@@ -1,2 +1,2 @@
-python-telegram-bot[webhooks]==22.7
+python-telegram-bot[webhooks,job-queue]==22.7
 httpx

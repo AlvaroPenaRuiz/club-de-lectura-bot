@@ -23,6 +23,11 @@ from app.db import (
     obtener_capitulo_contenido,
     obtener_capitulos_contenido,
     listar_capitulos_contenido,
+    quienes_faltan,
+    activar_modo_presion,
+    desactivar_modo_presion,
+    grupos_con_modo_presion,
+    registrar_envio_presion,
 )
 from app.utils import (
     configurar_whitelist,
@@ -95,7 +100,12 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/modificarformatos <texto>\n"
         "/modificarpaginas <número>\n"
         "/modificarsinopsis <texto>\n"
-        "/modificarsaga <texto>"
+        "/modificarsaga <texto>\n"
+        "\n🔥 Modo presión (admin):\n"
+        "/activarpresion — Activar recordatorios automáticos\n"
+        "/desactivarpresion — Desactivar recordatorios\n"
+        "  Si quedan lectores pendientes: GIF tras 1 semana,\n"
+        "  cada 2 días tras 2 semanas, cada día tras 3 semanas."
     )
     if es_owner(update.effective_user.id):
         texto += (
@@ -547,7 +557,85 @@ async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(html, parse_mode="HTML")
 
 
-# ─── Comandos de propietario ─────────────────────────────────
+
+# ─── Modo presión ─────────────────────────────────────────────
+
+_GIF_PRESION = "https://media.giphy.com/media/JzOyy8vKMCwvK/giphy.gif"
+
+
+async def activarmodopresion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden activar el modo presión.")
+        return
+
+    club = ver_club(update.effective_chat.id)
+    if not club or not club['capitulos']:
+        await update.message.reply_text("Primero hay que configurar capítulos con /cambiarcapitulos.")
+        return
+
+    activar_modo_presion(update.effective_chat.id)
+    await update.message.reply_text(
+        "🔥 Modo presión activado. Si quedan lectores pendientes:\n"
+        "• Tras 1 semana: se enviará un recordatorio\n"
+        "• Tras 2 semanas: cada 2 días\n"
+        "• Tras 3 semanas: cada día"
+    )
+
+
+async def desactivarmodopresion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden desactivar el modo presión.")
+        return
+
+    desactivar_modo_presion(update.effective_chat.id)
+    await update.message.reply_text("🙌 Modo presión desactivado.")
+
+
+async def check_modo_presion(context: ContextTypes.DEFAULT_TYPE):
+    """Job diario que envía el GIF de presión a los grupos que lo tienen activo."""
+    from datetime import datetime, timezone
+
+    grupos = grupos_con_modo_presion()
+    for grupo in grupos:
+        chat_id = grupo['chat_id']
+        caps_cambiados_en = grupo['capitulos_cambiados_en']
+        if not caps_cambiados_en:
+            continue
+
+        faltan = quienes_faltan(chat_id)
+        if not faltan:
+            continue
+
+        cambiado = datetime.fromisoformat(caps_cambiados_en).replace(tzinfo=timezone.utc)
+        ahora = datetime.now(timezone.utc)
+        dias = (ahora - cambiado).days
+
+        if dias < 7:
+            continue
+
+        ultimo_str = grupo.get('presion_enviado_en')
+        if ultimo_str:
+            ultimo = datetime.fromisoformat(ultimo_str).replace(tzinfo=timezone.utc)
+            dias_desde_envio = (ahora - ultimo).days
+        else:
+            dias_desde_envio = None
+
+        if dias >= 21:
+            debe_enviar = dias_desde_envio is None or dias_desde_envio >= 1
+        elif dias >= 14:
+            debe_enviar = dias_desde_envio is None or dias_desde_envio >= 2
+        else:  # 7 <= dias < 14
+            debe_enviar = dias_desde_envio is None
+
+        if debe_enviar:
+            try:
+                await context.bot.send_animation(chat_id=chat_id, animation=_GIF_PRESION)
+                registrar_envio_presion(chat_id)
+            except Exception:
+                logger.exception("Error enviando GIF de presión al chat %s", chat_id)
+
+
+# ─── Comandos de propietario ───────────────────────────────────────
 
 
 async def autorizar(update: Update, context: ContextTypes.DEFAULT_TYPE):

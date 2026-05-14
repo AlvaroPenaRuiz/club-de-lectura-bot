@@ -70,6 +70,17 @@ def inicializar():
             );
         """)
 
+        # Migraciones: columnas añadidas tras la versión inicial
+        for _sql in [
+            "ALTER TABLE clubes ADD COLUMN modo_presion INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE clubes ADD COLUMN capitulos_cambiados_en TEXT",
+            "ALTER TABLE clubes ADD COLUMN presion_enviado_en TEXT",
+        ]:
+            try:
+                conn.execute(_sql)
+            except sqlite3.OperationalError:
+                pass  # La columna ya existe
+
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
     with closing(_conectar()) as conn, conn:
@@ -167,6 +178,8 @@ def cambiar_capitulos(chat_id: int, nombre_grupo: str | None, capitulos: str):
             UPDATE clubes
             SET capitulos = ?,
                 version_capitulos = ?,
+                capitulos_cambiados_en = CURRENT_TIMESTAMP,
+                presion_enviado_en = NULL,
                 actualizado_en = CURRENT_TIMESTAMP
             WHERE chat_id = ?
         """, (capitulos, nueva_version, chat_id))
@@ -370,3 +383,39 @@ def listar_capitulos_contenido(chat_id: int) -> list[int]:
             ORDER BY numero
         """, (chat_id,)).fetchall()
         return [r["numero"] for r in rows]
+
+
+# ─── Modo presión ─────────────────────────────────────────────
+
+
+def activar_modo_presion(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes SET modo_presion = 1 WHERE chat_id = ?
+        """, (chat_id,))
+
+
+def desactivar_modo_presion(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes
+            SET modo_presion = 0, presion_enviado_en = NULL
+            WHERE chat_id = ?
+        """, (chat_id,))
+
+
+def grupos_con_modo_presion() -> list[dict]:
+    with closing(_conectar()) as conn:
+        rows = conn.execute("""
+            SELECT chat_id, capitulos_cambiados_en, presion_enviado_en
+            FROM clubes
+            WHERE modo_presion = 1
+        """).fetchall()
+        return [dict(r) for r in rows]
+
+
+def registrar_envio_presion(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes SET presion_enviado_en = CURRENT_TIMESTAMP WHERE chat_id = ?
+        """, (chat_id,))
