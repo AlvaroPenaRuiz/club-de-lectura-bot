@@ -6,6 +6,30 @@ from telegram.constants import ChatMemberStatus
 
 logger = logging.getLogger(__name__)
 
+
+# La ficha mostrada por /info y la que genera /buscardatoslibro comparten
+# exactamente los mismos campos y etiquetas.
+CAMPOS_INFO_LIBRO = (
+    ("📖 Título", "libro"),
+    ("✍️ Autor", "autor"),
+    ("🎭 Temática", "tematica"),
+    ("✨ Características", "caracteristicas"),
+    ("📚 Formatos", "formatos"),
+    ("📄 Páginas", "paginas"),
+    ("📝 Sinopsis", "sinopsis"),
+    ("🗂️ Saga", "saga"),
+)
+
+
+def formatear_ficha_libro(datos: dict, incluir_vacios: bool = False) -> str:
+    """Devuelve la ficha de libro con el formato común del bot."""
+    lineas = []
+    for etiqueta, campo in CAMPOS_INFO_LIBRO:
+        valor = datos.get(campo)
+        if valor or incluir_vacios:
+            lineas.append(f"{etiqueta}: {valor or 'No disponible'}")
+    return "\n".join(lineas)
+
 from app.db import (
     ver_club,
     cambiar_libro,
@@ -82,6 +106,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "\n📖 Libro:\n"
         "/cambiarlibro <título> — Cambiar el libro (admin)\n"
         "/info — Información del libro\n"
+        "/buscardatoslibro <título, autor, idioma...> — Buscar ficha de un libro con IA\n"
         "/meapunto — Apuntarse a la lectura\n"
         "/meborro — Borrarse de la lectura\n"
         "/apuntados — Ver quién está apuntado\n"
@@ -127,19 +152,7 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No hay ningún libro configurado.")
         return
 
-    campos = [
-        ("📖 Título", club['libro']),
-        ("✍️ Autor", club.get('autor')),
-        ("🎭 Temática", club.get('tematica')),
-        ("✨ Características", club.get('caracteristicas')),
-        ("📚 Formatos", club.get('formatos')),
-        ("📄 Páginas", club.get('paginas')),
-        ("📝 Sinopsis", club.get('sinopsis')),
-        ("🗂️ Saga", club.get('saga')),
-    ]
-
-    lineas = [f"{etiqueta}: {valor}" for etiqueta, valor in campos if valor]
-    await update.message.reply_text("\n".join(lineas))
+    await update.message.reply_text(formatear_ficha_libro(club))
 
 
 async def estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -581,6 +594,65 @@ async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             html = f"<blockquote expandable>{trozo}</blockquote>"
         await update.message.reply_text(html, parse_mode="HTML")
+
+
+async def buscardatoslibro(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Busca una ficha de libro con la IA sin alterar el libro activo del club."""
+    import json
+
+    from app.ai import buscar_datos_libro
+
+    consulta = " ".join(context.args).strip()
+    if not consulta:
+        await update.message.reply_text(
+            "Uso: /buscardatoslibro <título, autor, idioma o editorial>\n"
+            "Ejemplo: /buscardatoslibro El camino de los reyes de Brandon Sanderson"
+        )
+        return
+
+    aviso = await update.message.reply_text("🔎 Buscando datos del libro...")
+    try:
+        resultado = await buscar_datos_libro(consulta)
+    except ValueError as e:
+        msg = str(e)
+        if "content_filter" in msg:
+            logger.warning("Búsqueda de libro bloqueada por filtro de contenido")
+            await aviso.edit_text("⚠️ La IA ha bloqueado la respuesta por filtro de contenido.")
+        elif "rate_limit" in msg:
+            logger.warning("Búsqueda de libro bloqueada por rate limit")
+            await aviso.edit_text("⚠️ Límite de peticiones alcanzado. Espera un poco y vuelve a intentarlo.")
+        else:
+            logger.error("Error inesperado en buscar_datos_libro: %s", msg)
+            await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
+    except Exception:
+        logger.exception("Error al llamar a buscar_datos_libro")
+        await aviso.edit_text("❌ Error al conectar con el servicio de IA.")
+        return
+
+    try:
+        datos = json.loads(resultado)
+    except json.JSONDecodeError:
+        logger.warning("La IA devolvió una ficha de libro con JSON no válido: %r", resultado)
+        await aviso.edit_text("❌ La IA ha devuelto una ficha con un formato no válido. Vuelve a intentarlo.")
+        return
+
+    if not isinstance(datos, dict) or datos.get("identificado") is not True:
+        await aviso.edit_text(
+            "No he podido identificar el libro con seguridad. "
+            "Prueba a incluir el título y el autor."
+        )
+        return
+
+    ficha = formatear_ficha_libro(datos, incluir_vacios=True)
+
+    # Telegram limita cada mensaje a 4096 caracteres; el prompt solicita 3800,
+    # pero esta protección evita fallos si el modelo no sigue el límite.
+    max_chars = 4000
+    trozos = [ficha[i:i + max_chars] for i in range(0, len(ficha), max_chars)]
+    await aviso.delete()
+    for trozo in trozos or ["No se han encontrado datos para ese libro."]:
+        await update.message.reply_text(trozo)
 
 
 

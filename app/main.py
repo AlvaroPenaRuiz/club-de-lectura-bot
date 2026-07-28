@@ -24,6 +24,7 @@ from app.handlers import (
     listarcapitulos,
     resumen,
     pregunta,
+    buscardatoslibro,
     modificartitulo,
     modificarautor,
     modificartematica,
@@ -90,6 +91,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("listarcapitulos", listarcapitulos))
     app.add_handler(CommandHandler("resumen", resumen))
     app.add_handler(CommandHandler("pregunta", pregunta))
+    app.add_handler(CommandHandler("buscardatoslibro", buscardatoslibro))
     app.add_handler(CommandHandler("autorizar", autorizar))
     app.add_handler(CommandHandler("desautorizar", desautorizar))
     app.add_handler(CommandHandler("activarpresion", activarmodopresion))

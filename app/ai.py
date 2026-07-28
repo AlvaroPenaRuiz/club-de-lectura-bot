@@ -136,6 +136,54 @@ Pregunta del lector:
 Genera la respuesta:
 """
 
+PROMPT_BUSCAR_DATOS_LIBRO = """\
+Eres el asistente de un club de lectura. Identifica el libro solicitado usando la
+consulta del usuario, que puede contener título, autor, idioma, editorial o datos
+incompletos. Después devuelve una ficha útil para el club en español de España.
+
+Rigor:
+• Identifica primero la obra y, si se pide un idioma, usa la edición disponible en
+  ese idioma cuando el dato dependa de la edición (por ejemplo, páginas o formatos).
+• El idioma por defecto es español de España, si no existiera se busca en inglés y 
+  se especifica. Si se solicitara en otro idioma pues se ignora el comportamiento 
+  por defecto.
+• No inventes datos. Si un dato no puede determinarse con seguridad, escribe
+  «No disponible» en ese campo. Para páginas, indica la edición a la que corresponde
+  si la conoces; este dato puede variar entre ediciones.
+• Si la consulta es ambigua y no puedes identificar una obra con suficiente
+  seguridad, devuelve identificado como false y deja vacíos el resto de campos.
+• La sinopsis no debe revelar giros importantes ni el desenlace.
+
+Formato de salida estricto:
+• Responde únicamente con un objeto JSON válido, sin Markdown ni texto adicional.
+• Usa exactamente estas claves: identificado, libro, autor, tematica,
+  caracteristicas, formatos, paginas, sinopsis y saga.
+• identificado debe ser true si has identificado la obra con seguridad y false en
+  caso contrario.
+• Todas las demás claves deben tener un texto como valor. Si identificado es false,
+  deja las demás claves como cadenas vacías.
+• Escribe una sinopsis breve, de 3 a 5 frases y como máximo 1.200 caracteres.
+• La respuesta completa no puede superar los 3.800 caracteres.
+
+Ejemplo de estructura (los valores son solo ilustrativos):
+{{
+  "identificado": true,
+  "libro": "Título de la obra",
+  "autor": "Autor o autores",
+  "tematica": "Géneros y temas principales",
+  "caracteristicas": "Rasgos narrativos o de contenido relevantes",
+  "formatos": "Formatos disponibles en el idioma solicitado, si aplica. Normalmente incluye papel, digital y audiolibro",
+  "paginas": "Número de páginas o No disponible",
+  "sinopsis": "Sinopsis sin spoilers",
+  "saga": "Nombre de la saga y posición, o Libro autoconclusivo"
+}}
+
+Consulta del usuario:
+{consulta}
+
+Genera la ficha:
+"""
+
 
 async def _llamar_llm(prompt: str) -> str:
     async with httpx.AsyncClient(timeout=300.0) as client:
@@ -173,4 +221,9 @@ async def generar_resumen(contenido_capitulos: str) -> str:
 
 async def responder_pregunta(contenido_capitulos: str, pregunta: str) -> str:
     prompt = PROMPT_PREGUNTA.format(contenido_capitulos=contenido_capitulos, pregunta=pregunta)
+    return await _llamar_llm(prompt)
+
+
+async def buscar_datos_libro(consulta: str) -> str:
+    prompt = PROMPT_BUSCAR_DATOS_LIBRO.format(consulta=consulta)
     return await _llamar_llm(prompt)
