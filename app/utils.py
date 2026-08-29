@@ -63,6 +63,14 @@ def parsear_capitulos(texto: str) -> list[int] | None:
 def formato_capitulos(capitulos_str: str) -> str:
     """Convierte '1,2,3,4,5' almacenado en DB a texto bonito."""
     nums = [int(c) for c in capitulos_str.split(",")]
+    if nums == [0]:
+        return "Contexto extra previo al libro (capítulo 0)"
+    if 0 in nums:
+        restantes = ",".join(str(n) for n in nums if n != 0)
+        return (
+            "Contexto extra previo al libro (capítulo 0) y "
+            f"{formato_capitulos(restantes).lower()}"
+        )
     if len(nums) == 1:
         return f"Capítulo {nums[0]}"
     return f"Capítulos {', '.join(str(n) for n in nums[:-1])} y {nums[-1]}"

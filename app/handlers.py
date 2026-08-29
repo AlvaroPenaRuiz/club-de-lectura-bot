@@ -419,7 +419,8 @@ async def subircapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "Envía un archivo ZIP con el comando /subircapitulos como descripción del archivo, "
             "o responde a un ZIP con /subircapitulos.\n"
-            "Los archivos dentro deben llamarse con el número del capítulo: 1.txt, 2.txt, etc."
+            "Los archivos dentro deben llamarse con el número del capítulo: "
+            "0.txt para el contexto extra previo al libro, seguido de 1.txt, 2.txt, etc."
         )
         return
 
@@ -463,7 +464,10 @@ async def subircapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     zf.close()
 
     if not capitulos:
-        await update.message.reply_text("❌ No se encontró ningún archivo con formato válido (1.txt, 2.txt, ...).")
+        await update.message.reply_text(
+            "❌ No se encontró ningún archivo con formato válido "
+            "(0.txt para contexto extra previo al libro; 1.txt, 2.txt, ... para capítulos)."
+        )
         return
 
     guardar_capitulos_contenido(update.effective_chat.id, capitulos)
@@ -471,6 +475,8 @@ async def subircapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nums = ", ".join(str(c[0]) for c in capitulos)
 
     texto = f"✅ Subidos {len(capitulos)} capítulo(s): {nums}"
+    if any(numero == 0 for numero, _ in capitulos):
+        texto += "\nℹ️ El archivo 0.txt se usará como contexto extra previo al libro."
     if ignorados:
         texto += f"\n\n⚠️ Archivos ignorados ({len(ignorados)}):\n" + "\n".join(f"• {n}" for n in ignorados)
 
@@ -490,13 +496,22 @@ async def vercapitulo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     contenido = obtener_capitulo_contenido(update.effective_chat.id, numero)
     if not contenido:
-        await update.message.reply_text(f"No hay contenido subido para el capítulo {numero}.")
+        if numero == 0:
+            await update.message.reply_text(
+                "No hay contenido extra previo al libro subido como capítulo 0."
+            )
+        else:
+            await update.message.reply_text(f"No hay contenido subido para el capítulo {numero}.")
         return
 
     lineas = contenido.splitlines()[:10]
     preview = "\n".join(lineas)
     total = len(contenido.splitlines())
-    texto = f"📖 Capítulo {numero} (primeras líneas, {total} total):\n\n{preview}"
+    if numero == 0:
+        titulo = "📖 Contexto extra previo al libro (capítulo 0)"
+    else:
+        titulo = f"📖 Capítulo {numero}"
+    texto = f"{titulo} (primeras líneas, {total} total):\n\n{preview}"
     if total > 10:
         texto += "\n\n[...]"
     await update.message.reply_text(texto)
@@ -509,6 +524,8 @@ async def listarcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     texto = f"📄 Capítulos subidos ({len(nums)}):\n" + ", ".join(str(n) for n in nums)
+    if 0 in nums:
+        texto += "\n\nℹ️ El capítulo 0 contiene contexto extra previo al libro."
     await update.message.reply_text(texto)
 
 
@@ -553,7 +570,8 @@ async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Capítulos anteriores y, si todos han terminado, también el bloque activo.
     caps_activos = [int(c) for c in club['capitulos'].split(",")]
     primer_activo = min(caps_activos)
-    caps_contexto = list(range(1, primer_activo))
+    # El capítulo 0 puede contener contexto previo al comienzo del libro.
+    caps_contexto = list(range(0, primer_activo))
 
     lectores = ver_lectores(chat_id)
     todos_han_leido = bool(lectores) and not quienes_faltan(chat_id)
