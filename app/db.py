@@ -382,6 +382,16 @@ def listar_capitulos_contenido(chat_id: int) -> list[int]:
         return [r["numero"] for r in rows]
 
 
+def borrar_capitulo_contenido(chat_id: int, numero: int) -> bool:
+    """Borra un capítulo subido y devuelve si existía."""
+    with closing(_conectar()) as conn, conn:
+        cursor = conn.execute("""
+            DELETE FROM capitulos_contenido
+            WHERE chat_id = ? AND numero = ?
+        """, (chat_id, numero))
+        return cursor.rowcount > 0
+
+
 # ─── Modo presión ─────────────────────────────────────────────
 
 

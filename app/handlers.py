@@ -48,6 +48,7 @@ from app.db import (
     obtener_capitulo_contenido,
     obtener_capitulos_contenido,
     listar_capitulos_contenido,
+    borrar_capitulo_contenido,
     quienes_faltan,
     activar_modo_presion,
     desactivar_modo_presion,
@@ -121,6 +122,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/noleido — Desmarcar si lo marcaste por error\n"
         "/progreso — Ver el progreso de los capítulos\n"
         "/subircapitulos — Subir contenido en ZIP (admin)\n"
+        "/borrarcapitulo <n> — Borrar un capítulo subido (admin)\n"
         "/listarcapitulos — Ver capítulos subidos\n"
         "/vercapitulo <n> — Previsualizar un capítulo\n"
         "/resumen [rango] — Resumen IA de los capítulos\n"
@@ -527,6 +529,37 @@ async def listarcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 0 in nums:
         texto += "\n\nℹ️ El capítulo 0 contiene contexto extra previo al libro."
     await update.message.reply_text(texto)
+
+
+async def borrarcapitulo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden borrar capítulos.")
+        return
+
+    if len(context.args) != 1:
+        await update.message.reply_text("Uso: /borrarcapitulo <número>")
+        return
+
+    try:
+        numero = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("El número de capítulo debe ser un número entero.")
+        return
+
+    if numero < 0:
+        await update.message.reply_text("El número de capítulo no puede ser negativo.")
+        return
+
+    borrado = borrar_capitulo_contenido(update.effective_chat.id, numero)
+    if numero == 0:
+        descripcion = "el contexto extra previo al libro (capítulo 0)"
+    else:
+        descripcion = f"el capítulo {numero}"
+
+    if borrado:
+        await update.message.reply_text(f"🗑️ Se ha borrado {descripcion}.")
+    else:
+        await update.message.reply_text(f"No había contenido subido para {descripcion}.")
 
 
 async def resumen(update: Update, context: ContextTypes.DEFAULT_TYPE):
