@@ -550,18 +550,25 @@ async def pregunta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No hay capítulos activos configurados.")
         return
 
-    # Capítulos desde el 1 hasta el anterior al bloque activo
+    # Capítulos anteriores y, si todos han terminado, también el bloque activo.
     caps_activos = [int(c) for c in club['capitulos'].split(",")]
     primer_activo = min(caps_activos)
-    if primer_activo <= 1:
+    caps_contexto = list(range(1, primer_activo))
+
+    lectores = ver_lectores(chat_id)
+    todos_han_leido = bool(lectores) and not quienes_faltan(chat_id)
+    if todos_han_leido:
+        caps_contexto.extend(caps_activos)
+
+    if not caps_contexto:
         await update.message.reply_text("No hay capítulos anteriores al bloque activo para usar como contexto.")
         return
 
-    caps_contexto = list(range(1, primer_activo))
+    caps_contexto = sorted(set(caps_contexto))
     contenidos = obtener_capitulos_contenido(chat_id, caps_contexto)
     if not contenidos:
         await update.message.reply_text(
-            f"No hay contenido subido para los capítulos 1-{primer_activo - 1}.\n"
+            "No hay contenido subido para los capítulos disponibles como contexto.\n"
             "Súbelos primero con /subircapitulos."
         )
         return
