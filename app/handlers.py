@@ -220,7 +220,24 @@ async def setcapitulos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     caps_str = ",".join(str(c) for c in caps)
     cambiar_capitulos(update.effective_chat.id, update.effective_chat.title, caps_str)
-    await update.message.reply_text(f"📑 Toca leer: {formato_capitulos(caps_str)}")
+    mensaje = await update.message.reply_text(
+        f"📑 Toca leer: {formato_capitulos(caps_str)}"
+    )
+    try:
+        await context.bot.pin_chat_message(
+            chat_id=update.effective_chat.id,
+            message_id=mensaje.message_id,
+            disable_notification=True,
+        )
+    except Exception:
+        logger.exception(
+            "No se pudo fijar el mensaje de capítulos en el chat %s",
+            update.effective_chat.id,
+        )
+        await update.message.reply_text(
+            "⚠️ Los capítulos se han cambiado, pero no he podido fijar el mensaje. "
+            "Comprueba que el bot tenga permiso para fijar mensajes."
+        )
 
 
 async def meapunto(update: Update, context: ContextTypes.DEFAULT_TYPE):
