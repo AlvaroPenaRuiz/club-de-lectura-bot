@@ -76,18 +76,6 @@ def inicializar():
             );
         """)
 
-        # Migraciones ligeras para instalaciones que ya tenían creada la tabla.
-        columnas_clubes = {
-            row["name"] for row in conn.execute("PRAGMA table_info(clubes)").fetchall()
-        }
-        if "modo_verguenza" not in columnas_clubes:
-            conn.execute(
-                "ALTER TABLE clubes ADD COLUMN modo_verguenza INTEGER NOT NULL DEFAULT 0"
-            )
-        if "verguenza_enviada_version" not in columnas_clubes:
-            conn.execute(
-                "ALTER TABLE clubes ADD COLUMN verguenza_enviada_version INTEGER"
-            )
 
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
