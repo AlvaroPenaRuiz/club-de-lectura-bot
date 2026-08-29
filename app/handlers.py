@@ -1,3 +1,4 @@
+import html
 import logging
 
 from telegram import Update
@@ -52,6 +53,10 @@ from app.db import (
     desactivar_modo_presion,
     grupos_con_modo_presion,
     registrar_envio_presion,
+    activar_modo_verguenza,
+    desactivar_modo_verguenza,
+    lector_pendiente_verguenza,
+    registrar_envio_verguenza,
     activar_auto_resumen,
     desactivar_auto_resumen,
     auto_resumen_activo,
@@ -135,7 +140,10 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/activarpresion — Activar recordatorios automáticos\n"
         "/desactivarpresion — Desactivar recordatorios\n"
         "  Si quedan lectores pendientes: GIF tras 1 semana,\n"
-        "  cada 2 días tras 2 semanas, cada día tras 3 semanas."
+        "  cada 2 días tras 2 semanas, cada día tras 3 semanas.\n"
+        "\n😳 Modo vergüenza (admin):\n"
+        "/activarverguenza — Señalar al último lector pendiente\n"
+        "/desactivarverguenza — Desactivar el modo vergüenza"
     )
     if es_owner(update.effective_user.id):
         texto += (
@@ -248,6 +256,8 @@ async def leido(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError as e:
         await update.message.reply_text(str(e))
         return
+
+    await _enviar_verguenza_si_corresponde(chat_id, context)
 
     if auto_resumen_activo(chat_id) and not quienes_faltan(chat_id):
         club = ver_club(chat_id)
@@ -687,6 +697,70 @@ async def desactivarmodopresion(update: Update, context: ContextTypes.DEFAULT_TY
 
     desactivar_modo_presion(update.effective_chat.id)
     await update.message.reply_text("🙌 Modo presión desactivado.")
+
+
+# ─── Modo vergüenza ──────────────────────────────────────────
+
+_GIF_VERGUENZA = (
+    "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExaXZxeWdjOGs5dW1jemJzbDMwYndxNWQyMXoyMnk5dXR5am1mcHMyNyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/"
+    "vX9WcCiWwUF7G/giphy.gif"
+)
+
+
+async def activarmodoverguenza(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden activar el modo vergüenza.")
+        return
+
+    club = ver_club(update.effective_chat.id)
+    if not club or not club['capitulos']:
+        await update.message.reply_text("Primero hay que configurar capítulos con /cambiarcapitulos.")
+        return
+
+    activar_modo_verguenza(update.effective_chat.id)
+    await update.message.reply_text(
+        "😳 Modo vergüenza activado. Cuando solo quede una persona por leer, "
+        "será mencionada públicamente."
+    )
+    await _enviar_verguenza_si_corresponde(update.effective_chat.id, context)
+
+
+async def desactivarmodoverguenza(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await es_admin(update, context):
+        await update.message.reply_text("Solo los admins pueden desactivar el modo vergüenza.")
+        return
+
+    desactivar_modo_verguenza(update.effective_chat.id)
+    await update.message.reply_text("😌 Modo vergüenza desactivado.")
+
+
+async def _enviar_verguenza_si_corresponde(
+    chat_id: int, context: ContextTypes.DEFAULT_TYPE
+):
+    pendiente = lector_pendiente_verguenza(chat_id)
+    if not pendiente:
+        return
+
+    if pendiente['username']:
+        mencion = f"@{pendiente['username']}"
+    else:
+        nombre = html.escape(pendiente['nombre'])
+        mencion = f'<a href="tg://user?id={pendiente["user_id"]}">{nombre}</a>'
+
+    texto = (
+        f"{mencion} es el último miembro por leer los capítulos. "
+        "Que el peso de la vergüenza caiga sobre ti."
+    )
+    try:
+        await context.bot.send_animation(
+            chat_id=chat_id,
+            animation=_GIF_VERGUENZA,
+            caption=texto,
+            parse_mode="HTML",
+        )
+        registrar_envio_verguenza(chat_id)
+    except Exception:
+        logger.exception("Error enviando el aviso de vergüenza al chat %s", chat_id)
 
 
 async def activarautoresumen(update: Update, context: ContextTypes.DEFAULT_TYPE):

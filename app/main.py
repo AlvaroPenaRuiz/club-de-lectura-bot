@@ -38,6 +38,8 @@ from app.handlers import (
     activarmodopresion,
     desactivarmodopresion,
     check_modo_presion,
+    activarmodoverguenza,
+    desactivarmodoverguenza,
     activarautoresumen,
     desactivarautoresumen,
 )
@@ -96,6 +98,8 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("desautorizar", desautorizar))
     app.add_handler(CommandHandler("activarpresion", activarmodopresion))
     app.add_handler(CommandHandler("desactivarpresion", desactivarmodopresion))
+    app.add_handler(CommandHandler("activarverguenza", activarmodoverguenza))
+    app.add_handler(CommandHandler("desactivarverguenza", desactivarmodoverguenza))
     app.add_handler(CommandHandler("activarautoresumen", activarautoresumen))
     app.add_handler(CommandHandler("desactivarautoresumen", desactivarautoresumen))
 

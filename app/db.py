@@ -36,6 +36,8 @@ def inicializar():
                 modo_presion  INTEGER NOT NULL DEFAULT 0,
                 capitulos_cambiados_en TEXT,
                 presion_enviado_en TEXT,
+                modo_verguenza INTEGER NOT NULL DEFAULT 0,
+                verguenza_enviada_version INTEGER,
                 auto_resumen  INTEGER NOT NULL DEFAULT 0
             );
 
@@ -73,6 +75,19 @@ def inicializar():
                 PRIMARY KEY (chat_id, numero)
             );
         """)
+
+        # Migraciones ligeras para instalaciones que ya tenían creada la tabla.
+        columnas_clubes = {
+            row["name"] for row in conn.execute("PRAGMA table_info(clubes)").fetchall()
+        }
+        if "modo_verguenza" not in columnas_clubes:
+            conn.execute(
+                "ALTER TABLE clubes ADD COLUMN modo_verguenza INTEGER NOT NULL DEFAULT 0"
+            )
+        if "verguenza_enviada_version" not in columnas_clubes:
+            conn.execute(
+                "ALTER TABLE clubes ADD COLUMN verguenza_enviada_version INTEGER"
+            )
 
 
 def registrar_club(chat_id: int, nombre_grupo: str | None = None):
@@ -173,6 +188,7 @@ def cambiar_capitulos(chat_id: int, nombre_grupo: str | None, capitulos: str):
                 version_capitulos = ?,
                 capitulos_cambiados_en = CURRENT_TIMESTAMP,
                 presion_enviado_en = NULL,
+                verguenza_enviada_version = NULL,
                 actualizado_en = CURRENT_TIMESTAMP
             WHERE chat_id = ?
         """, (capitulos, nueva_version, chat_id))
@@ -411,6 +427,68 @@ def registrar_envio_presion(chat_id: int):
     with closing(_conectar()) as conn, conn:
         conn.execute("""
             UPDATE clubes SET presion_enviado_en = CURRENT_TIMESTAMP WHERE chat_id = ?
+        """, (chat_id,))
+
+
+# ─── Modo vergüenza ──────────────────────────────────────────
+
+
+def activar_modo_verguenza(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes SET modo_verguenza = 1 WHERE chat_id = ?
+        """, (chat_id,))
+
+
+def desactivar_modo_verguenza(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes
+            SET modo_verguenza = 0, verguenza_enviada_version = NULL
+            WHERE chat_id = ?
+        """, (chat_id,))
+
+
+def lector_pendiente_verguenza(chat_id: int) -> dict | None:
+    """Devuelve al único lector pendiente cuando corresponde enviar el aviso."""
+    with closing(_conectar()) as conn:
+        club = conn.execute("""
+            SELECT modo_verguenza, version_capitulos, verguenza_enviada_version
+            FROM clubes
+            WHERE chat_id = ?
+        """, (chat_id,)).fetchone()
+        if (
+            not club
+            or not club["modo_verguenza"]
+            or club["verguenza_enviada_version"] == club["version_capitulos"]
+        ):
+            return None
+
+        total = conn.execute(
+            "SELECT COUNT(*) FROM lectores WHERE chat_id = ?", (chat_id,)
+        ).fetchone()[0]
+        if total <= 1:
+            return None
+
+        pendientes = conn.execute("""
+            SELECT l.user_id, l.nombre, l.username
+            FROM lectores l
+            LEFT JOIN progreso p
+              ON p.chat_id = l.chat_id
+             AND p.user_id = l.user_id
+             AND p.version_capitulos = ?
+            WHERE l.chat_id = ?
+              AND p.user_id IS NULL
+        """, (club["version_capitulos"], chat_id)).fetchall()
+        return dict(pendientes[0]) if len(pendientes) == 1 else None
+
+
+def registrar_envio_verguenza(chat_id: int):
+    with closing(_conectar()) as conn, conn:
+        conn.execute("""
+            UPDATE clubes
+            SET verguenza_enviada_version = version_capitulos
+            WHERE chat_id = ?
         """, (chat_id,))
 
 
